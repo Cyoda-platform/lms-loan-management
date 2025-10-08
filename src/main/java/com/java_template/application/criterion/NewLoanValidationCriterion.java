@@ -61,7 +61,7 @@ public class NewLoanValidationCriterion implements CyodaCriterion {
         return className.equalsIgnoreCase(modelSpec.operationName());
     }
 
-    private EvaluationOutcome validateEntity(CriterionSerializer.CriterionEntityEvaluationContext<Loan> context) {
+    public EvaluationOutcome validateEntity(CriterionSerializer.CriterionEntityEvaluationContext<Loan> context) {
         Loan loan = context.entityWithMetadata().entity();
 
         // Check if entity is null (structural validation)
@@ -70,7 +70,7 @@ public class NewLoanValidationCriterion implements CyodaCriterion {
             return EvaluationOutcome.fail("Loan entity is null", StandardEvalReasonCategories.STRUCTURAL_FAILURE);
         }
 
-        if (!loan.isValid()) {
+        if (!loan.isValid(context.entityWithMetadata().metadata())) {
             logger.warn("Loan entity is not valid: {}", loan.getLoanId());
             return EvaluationOutcome.fail("Loan entity is not valid", StandardEvalReasonCategories.VALIDATION_FAILURE);
         }
@@ -94,12 +94,6 @@ public class NewLoanValidationCriterion implements CyodaCriterion {
         if (loan.getPrincipalAmount() == null || loan.getPrincipalAmount().compareTo(BigDecimal.ZERO) <= 0) {
             logger.warn("Invalid principal amount for loan {}: {}", loan.getLoanId(), loan.getPrincipalAmount());
             return EvaluationOutcome.fail("Principal amount must be positive", StandardEvalReasonCategories.BUSINESS_RULE_FAILURE);
-        }
-
-        // Validate funding date is not in the past
-        if (loan.getFundingDate() != null && loan.getFundingDate().isBefore(LocalDate.now())) {
-            logger.warn("Funding date is in the past for loan {}: {}", loan.getLoanId(), loan.getFundingDate());
-            return EvaluationOutcome.fail("Funding date cannot be in the past", StandardEvalReasonCategories.BUSINESS_RULE_FAILURE);
         }
 
         // Validate that the referenced party exists and is active

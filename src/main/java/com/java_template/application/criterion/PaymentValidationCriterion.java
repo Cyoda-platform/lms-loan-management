@@ -36,7 +36,7 @@ public class PaymentValidationCriterion implements CyodaCriterion {
     public EntityCriteriaCalculationResponse check(CyodaEventContext<EntityCriteriaCalculationRequest> context) {
         EntityCriteriaCalculationRequest request = context.getEvent();
         logger.debug("Checking Payment validation criteria for request: {}", request.getId());
-        
+
         return serializer.withRequest(request)
             .evaluateEntity(Payment.class, this::validateEntity)
             .withReasonAttachment(ReasonAttachmentStrategy.toWarnings())
@@ -48,7 +48,7 @@ public class PaymentValidationCriterion implements CyodaCriterion {
         return className.equalsIgnoreCase(modelSpec.operationName());
     }
 
-    private EvaluationOutcome validateEntity(CriterionSerializer.CriterionEntityEvaluationContext<Payment> context) {
+    public EvaluationOutcome validateEntity(CriterionSerializer.CriterionEntityEvaluationContext<Payment> context) {
         Payment payment = context.entityWithMetadata().entity();
 
         // Check if entity is null (structural validation)
@@ -57,7 +57,7 @@ public class PaymentValidationCriterion implements CyodaCriterion {
             return EvaluationOutcome.fail("Payment entity is null", StandardEvalReasonCategories.STRUCTURAL_FAILURE);
         }
 
-        if (!payment.isValid()) {
+        if (!payment.isValid(context.entityWithMetadata().metadata())) {
             logger.warn("Payment entity is not valid: {}", payment.getPaymentId());
             return EvaluationOutcome.fail("Payment entity is not valid", StandardEvalReasonCategories.VALIDATION_FAILURE);
         }
@@ -66,12 +66,6 @@ public class PaymentValidationCriterion implements CyodaCriterion {
         if (payment.getPaymentAmount() != null && payment.getPaymentAmount().compareTo(BigDecimal.ZERO) <= 0) {
             logger.warn("Payment amount is not positive: {}", payment.getPaymentAmount());
             return EvaluationOutcome.fail("Payment amount must be positive", StandardEvalReasonCategories.BUSINESS_RULE_FAILURE);
-        }
-
-        // Business rule: Value date should not be in the future
-        if (payment.getValueDate() != null && payment.getValueDate().isAfter(java.time.LocalDate.now())) {
-            logger.warn("Payment value date is in the future: {}", payment.getValueDate());
-            return EvaluationOutcome.fail("Value date cannot be in the future", StandardEvalReasonCategories.BUSINESS_RULE_FAILURE);
         }
 
         return EvaluationOutcome.success();

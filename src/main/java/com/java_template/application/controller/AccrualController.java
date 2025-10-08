@@ -5,6 +5,7 @@ import com.java_template.application.entity.accrual.version_1.Accrual;
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.service.EntityService;
 import com.java_template.common.util.CyodaExceptionUtil;
+import org.cyoda.cloud.api.event.common.EntityChangeMeta;
 import org.cyoda.cloud.api.event.common.ModelSpec;
 import org.cyoda.cloud.api.event.common.condition.GroupCondition;
 import org.cyoda.cloud.api.event.common.condition.Operation;
@@ -12,6 +13,8 @@ import org.cyoda.cloud.api.event.common.condition.QueryCondition;
 import org.cyoda.cloud.api.event.common.condition.SimpleCondition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -28,9 +31,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * ABOUTME: REST controller for Accrual entity operations, providing endpoints
- * for managing daily interest accrual records. Accruals are typically created
- * by automated EOD batch processes and queried by finance users for audit purposes.
+ * ABOUTME: REST controller for Accrual entity operations, providing CRUD endpoints
+ * for managing daily interest accruals on loans throughout their lifecycle.
  */
 @RestController
 @RequestMapping("/ui/accruals")
@@ -49,12 +51,9 @@ public class AccrualController {
     /**
      * Create a new accrual
      * POST /ui/accruals
-     * 
-     * This endpoint is typically called by automated EOD batch processes to create
-     * daily interest accrual records for active loans.
      */
     @PostMapping
-    public ResponseEntity<?> createAccrual(@RequestBody Accrual accrual) {
+    public ResponseEntity<EntityWithMetadata<Accrual>> createAccrual(@RequestBody Accrual accrual) {
         try {
             // Check for duplicate business identifier
             ModelSpec modelSpec = new ModelSpec().withName(Accrual.ENTITY_NAME).withVersion(Accrual.ENTITY_VERSION);
@@ -103,9 +102,16 @@ public class AccrualController {
                 ? Date.from(pointInTime.toInstant())
                 : null;
             EntityWithMetadata<Accrual> response = entityService.getById(id, modelSpec, Accrual.class, pointInTimeDate);
+            if (response == null) {
+                return ResponseEntity.notFound().build();
+            }
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                    HttpStatus.BAD_REQUEST,
+                    String.format("Failed to retrieve accrual with ID '%s': %s", id, e.getMessage())
+            );
+            return ResponseEntity.of(problemDetail).build();
         }
     }
 
@@ -143,14 +149,14 @@ public class AccrualController {
      * GET /ui/accruals/{id}/changes?pointInTime=2025-10-03T10:15:30Z
      */
     @GetMapping("/{id}/changes")
-    public ResponseEntity<?> getAccrualChangesMetadata(
+    public ResponseEntity<List<EntityChangeMeta>> getAccrualChangesMetadata(
             @PathVariable UUID id,
             @RequestParam(required = false) OffsetDateTime pointInTime) {
         try {
             Date pointInTimeDate = pointInTime != null
                 ? Date.from(pointInTime.toInstant())
                 : null;
-            List<org.cyoda.cloud.api.event.common.EntityChangeMeta> changes =
+            List<EntityChangeMeta> changes =
                     entityService.getEntityChangesMetadata(id, pointInTimeDate);
             return ResponseEntity.ok(changes);
         } catch (Exception e) {
@@ -190,17 +196,15 @@ public class AccrualController {
 
     /**
      * List all accruals with pagination and optional filtering
-     * GET /ui/accruals?page=0&size=20&state=POSTED&loanId=LOAN123&valueDate=2025-10-03&pointInTime=2025-10-03T10:15:30Z
-     *
-     * This endpoint supports the "View Interest Accrual History" user story,
-     * allowing finance users to view accrual records for specific loans.
+     * GET /ui/accruals?page=0&size=20&state=POSTED&loanId=LOAN-123&asOfDate=2025-10-07&runId=RUN-001&pointInTime=2025-10-03T10:15:30Z
      */
     @GetMapping
-    public ResponseEntity<?> listAccruals(
+    public ResponseEntity<Page<EntityWithMetadata<Accrual>>> listAccruals(
             Pageable pageable,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String loanId,
-            @RequestParam(required = false) LocalDate valueDate,
+            @RequestParam(required = false) LocalDate asOfDate,
+            @RequestParam(required = false) String runId,
             @RequestParam(required = false) OffsetDateTime pointInTime) {
         try {
             ModelSpec modelSpec = new ModelSpec().withName(Accrual.ENTITY_NAME).withVersion(Accrual.ENTITY_VERSION);
@@ -218,19 +222,27 @@ public class AccrualController {
                 conditions.add(loanCondition);
             }
 
-            if (valueDate != null) {
+            if (asOfDate != null) {
                 SimpleCondition dateCondition = new SimpleCondition()
-                        .withJsonPath("$.valueDate")
+                        .withJsonPath("$.asOfDate")
                         .withOperation(Operation.EQUALS)
-                        .withValue(objectMapper.valueToTree(valueDate));
+                        .withValue(objectMapper.valueToTree(asOfDate));
                 conditions.add(dateCondition);
+            }
+
+            if (runId != null && !runId.trim().isEmpty()) {
+                SimpleCondition runCondition = new SimpleCondition()
+                        .withJsonPath("$.runId")
+                        .withOperation(Operation.EQUALS)
+                        .withValue(objectMapper.valueToTree(runId));
+                conditions.add(runCondition);
             }
 
             if (conditions.isEmpty() && (state == null || state.trim().isEmpty())) {
                 // Use paginated findAll when no filters
                 return ResponseEntity.ok(entityService.findAll(modelSpec, pageable, Accrual.class, pointInTimeDate));
             } else {
-                // For filtered results, use search (returns all matching results, not paginated)
+                // For filtered results, get all matching results then manually paginate
                 List<EntityWithMetadata<Accrual>> accruals;
                 if (conditions.isEmpty()) {
                     accruals = entityService.findAll(modelSpec, Accrual.class, pointInTimeDate);
@@ -248,7 +260,15 @@ public class AccrualController {
                             .toList();
                 }
 
-                return ResponseEntity.ok(accruals);
+                // Manually paginate the filtered results
+                int start = (int) pageable.getOffset();
+                int end = Math.min(start + pageable.getPageSize(), accruals.size());
+                List<EntityWithMetadata<Accrual>> pageContent = start < accruals.size()
+                    ? accruals.subList(start, end)
+                    : new ArrayList<>();
+
+                Page<EntityWithMetadata<Accrual>> page = new PageImpl<>(pageContent, pageable, accruals.size());
+                return ResponseEntity.ok(page);
             }
         } catch (Exception e) {
             ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
@@ -308,7 +328,7 @@ public class AccrualController {
      * DELETE /ui/accruals
      */
     @DeleteMapping
-    public ResponseEntity<?> deleteAllAccruals() {
+    public ResponseEntity<String> deleteAllAccruals() {
         try {
             ModelSpec modelSpec = new ModelSpec().withName(Accrual.ENTITY_NAME).withVersion(Accrual.ENTITY_VERSION);
             Integer deletedCount = entityService.deleteAll(modelSpec);

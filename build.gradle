@@ -43,6 +43,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-web:3.5.3'
     implementation 'org.springframework.boot:spring-boot-starter' // Version managed by Spring Boot
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client' // Version managed by Spring Boot
+    implementation 'org.springframework.boot:spring-boot-starter-validation' // For @Valid and Bean Validation
     implementation 'org.springframework.data:spring-data-commons' // For Page and Pageable
 
 
@@ -64,7 +65,7 @@ dependencies {
 
     implementation 'io.github.cdimascio:java-dotenv:5.2.2'
     implementation 'org.apache.httpcomponents.client5:httpclient5:5.5'
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.3'
     implementation 'com.fasterxml.uuid:java-uuid-generator:4.0.1'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
     implementation 'com.github.ben-manes.caffeine:caffeine:3.1.8'

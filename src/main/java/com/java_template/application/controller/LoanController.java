@@ -5,6 +5,7 @@ import com.java_template.application.entity.loan.version_1.Loan;
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.service.EntityService;
 import com.java_template.common.util.CyodaExceptionUtil;
+import jakarta.validation.Valid;
 import org.cyoda.cloud.api.event.common.EntityChangeMeta;
 import org.cyoda.cloud.api.event.common.ModelSpec;
 import org.cyoda.cloud.api.event.common.condition.GroupCondition;
@@ -13,6 +14,8 @@ import org.cyoda.cloud.api.event.common.condition.QueryCondition;
 import org.cyoda.cloud.api.event.common.condition.SimpleCondition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -51,7 +54,7 @@ public class LoanController {
      * POST /ui/loans
      */
     @PostMapping
-    public ResponseEntity<?> createLoan(@RequestBody Loan loan) {
+    public ResponseEntity<EntityWithMetadata<Loan>> createLoan(@Valid @RequestBody Loan loan) {
         try {
             // Check for duplicate business identifier
             ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
@@ -105,9 +108,16 @@ public class LoanController {
                 ? Date.from(pointInTime.toInstant())
                 : null;
             EntityWithMetadata<Loan> response = entityService.getById(id, modelSpec, Loan.class, pointInTimeDate);
+            if (response == null) {
+                return ResponseEntity.notFound().build();
+            }
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.notFound().build();
+            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST,
+                String.format("Failed to retrieve loan with ID '%s': %s", id, e.getMessage())
+            );
+            return ResponseEntity.of(problemDetail).build();
         }
     }
 
@@ -145,7 +155,7 @@ public class LoanController {
      * GET /ui/loans/{id}/changes?pointInTime=2025-10-03T10:15:30Z
      */
     @GetMapping("/{id}/changes")
-    public ResponseEntity<?> getLoanChangesMetadata(
+    public ResponseEntity<List<EntityChangeMeta>> getLoanChangesMetadata(
             @PathVariable UUID id,
             @RequestParam(required = false) OffsetDateTime pointInTime) {
         try {
@@ -175,7 +185,7 @@ public class LoanController {
     @PutMapping("/{id}")
     public ResponseEntity<EntityWithMetadata<Loan>> updateLoan(
             @PathVariable UUID id,
-            @RequestBody Loan loan,
+            @Valid @RequestBody Loan loan,
             @RequestParam(required = false) String transition) {
         try {
             EntityWithMetadata<Loan> response = entityService.update(id, loan, transition);
@@ -195,7 +205,7 @@ public class LoanController {
      * GET /ui/loans?page=0&size=20&state=ACTIVE&partyId=PARTY123&pointInTime=2025-10-03T10:15:30Z
      */
     @GetMapping
-    public ResponseEntity<?> listLoans(
+    public ResponseEntity<Page<EntityWithMetadata<Loan>>> listLoans(
             Pageable pageable,
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String partyId,
@@ -220,7 +230,7 @@ public class LoanController {
                 // Use paginated findAll when no filters
                 return ResponseEntity.ok(entityService.findAll(modelSpec, pageable, Loan.class, pointInTimeDate));
             } else {
-                // For filtered results, use search (returns all matching results, not paginated)
+                // For filtered results, get all matching results then manually paginate
                 List<EntityWithMetadata<Loan>> loans;
                 if (conditions.isEmpty()) {
                     loans = entityService.findAll(modelSpec, Loan.class, pointInTimeDate);
@@ -238,7 +248,15 @@ public class LoanController {
                             .toList();
                 }
 
-                return ResponseEntity.ok(loans);
+                // Manually paginate the filtered results
+                int start = (int) pageable.getOffset();
+                int end = Math.min(start + pageable.getPageSize(), loans.size());
+                List<EntityWithMetadata<Loan>> pageContent = start < loans.size()
+                    ? loans.subList(start, end)
+                    : new ArrayList<>();
+
+                Page<EntityWithMetadata<Loan>> page = new PageImpl<>(pageContent, pageable, loans.size());
+                return ResponseEntity.ok(page);
             }
         } catch (Exception e) {
             ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
@@ -258,7 +276,7 @@ public class LoanController {
         try {
             ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
             EntityWithMetadata<Loan> current = entityService.getById(id, modelSpec, Loan.class);
-            
+
             EntityWithMetadata<Loan> response = entityService.update(id, current.entity(), "submit_for_approval");
             logger.info("Loan submitted for approval with ID: {}", id);
             return ResponseEntity.ok(response);
@@ -280,7 +298,7 @@ public class LoanController {
         try {
             ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
             EntityWithMetadata<Loan> current = entityService.getById(id, modelSpec, Loan.class);
-            
+
             EntityWithMetadata<Loan> response = entityService.update(id, current.entity(), "approve_loan");
             logger.info("Loan approved with ID: {}", id);
             return ResponseEntity.ok(response);
@@ -302,7 +320,7 @@ public class LoanController {
         try {
             ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
             EntityWithMetadata<Loan> current = entityService.getById(id, modelSpec, Loan.class);
-            
+
             EntityWithMetadata<Loan> response = entityService.update(id, current.entity(), "reject_loan");
             logger.info("Loan rejected with ID: {}", id);
             return ResponseEntity.ok(response);
@@ -324,7 +342,7 @@ public class LoanController {
         try {
             ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
             EntityWithMetadata<Loan> current = entityService.getById(id, modelSpec, Loan.class);
-            
+
             EntityWithMetadata<Loan> response = entityService.update(id, current.entity(), "fund_loan");
             logger.info("Loan funded with ID: {}", id);
             return ResponseEntity.ok(response);
@@ -411,7 +429,7 @@ public class LoanController {
      * DELETE /ui/loans
      */
     @DeleteMapping
-    public ResponseEntity<?> deleteAllLoans() {
+    public ResponseEntity<String> deleteAllLoans() {
         try {
             ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
             Integer deletedCount = entityService.deleteAll(modelSpec);
