@@ -32,7 +32,7 @@ class EvaluationChainTest {
     private ObjectNode testPayload;
 
     // Test entity for evaluation chain tests
-    @SuppressWarnings({"LombokGetterMayBeUsed", "LombokSetterMayBeUsed"}) // Not here
+    @SuppressWarnings({"LombokGetterMayBeUsed", "LombokSetterMayBeUsed", "unused"}) // Not here
     static class TestEntity implements CyodaEntity {
         private Long id;
         private String name;
@@ -41,13 +41,6 @@ class EvaluationChainTest {
 
         @SuppressWarnings("unused") // Needed by Jackson
         public TestEntity() {}
-
-        public TestEntity(Long id, String name, String status, String category) {
-            this.id = id;
-            this.name = name;
-            this.status = status;
-            this.category = category;
-        }
 
         public Long getId() { return id; }
         public void setId(Long id) { this.id = id; }
@@ -119,8 +112,8 @@ class EvaluationChainTest {
 
             // Check if pet is available
             return payload.get("status").asText().equals("available")
-                ? EvaluationOutcome.success()
-                : EvaluationOutcome.Fail.businessRuleFailure("Pet not available");
+                    ? EvaluationOutcome.success()
+                    : EvaluationOutcome.Fail.businessRuleFailure("Pet not available");
         };
 
         // When
@@ -143,8 +136,8 @@ class EvaluationChainTest {
 
             // Check if pet is a dog (it's not)
             return payload.get("category").asText().equals("dog")
-                ? EvaluationOutcome.success()
-                : EvaluationOutcome.Fail.businessRuleFailure("Not a dog");
+                    ? EvaluationOutcome.success()
+                    : EvaluationOutcome.Fail.businessRuleFailure("Not a dog");
         };
 
         // When
@@ -182,7 +175,7 @@ class EvaluationChainTest {
     void testCustomErrorHandler() {
         // Given
         BiFunction<Throwable, JsonNode, ErrorInfo> customErrorHandler =
-            (error, payload) -> new ErrorInfo("CUSTOM_EVAL_ERROR", "Custom: " + error.getMessage());
+                (error, payload) -> new ErrorInfo("CUSTOM_EVAL_ERROR", "Custom: " + error.getMessage());
 
         Function<CriterionSerializer.CriterionEvaluationContext, EvaluationOutcome> faultyEvaluator = context -> {
             throw new RuntimeException("Evaluation failed");
@@ -212,8 +205,8 @@ class EvaluationChainTest {
 
             // Check if entity is valid and available
             return entity.isValid(context.entityWithMetadata().metadata()) && "available".equals(entity.getStatus())
-                ? EvaluationOutcome.success()
-                : EvaluationOutcome.Fail.structuralFailure("Entity validation failed");
+                    ? EvaluationOutcome.success()
+                    : EvaluationOutcome.Fail.structuralFailure("Entity validation failed");
         };
 
         // When
@@ -290,7 +283,7 @@ class EvaluationChainTest {
     void testFluentChaining() {
         // Given
         BiFunction<Throwable, JsonNode, ErrorInfo> customErrorHandler =
-            (error, payload) -> new ErrorInfo("CHAIN_ERROR", "Chained error");
+                (error, payload) -> new ErrorInfo("CHAIN_ERROR", "Chained error");
 
         ReasonAttachmentStrategy customStrategy = ReasonAttachmentStrategy.none();
 
@@ -459,10 +452,10 @@ class EvaluationChainTest {
     void testMultipleErrorHandlers() {
         // Given
         BiFunction<Throwable, JsonNode, ErrorInfo> firstHandler =
-            (error, payload) -> new ErrorInfo("FIRST_ERROR", "First handler");
+                (error, payload) -> new ErrorInfo("FIRST_ERROR", "First handler");
 
         BiFunction<Throwable, JsonNode, ErrorInfo> secondHandler =
-            (error, payload) -> new ErrorInfo("SECOND_ERROR", "Second handler: " + error.getMessage());
+                (error, payload) -> new ErrorInfo("SECOND_ERROR", "Second handler: " + error.getMessage());
 
         Function<CriterionSerializer.CriterionEvaluationContext, EvaluationOutcome> faultyEvaluator = context -> {
             throw new RuntimeException("Test error");
@@ -682,12 +675,12 @@ class EvaluationChainTest {
     void testCustomErrorHandlerWhenNoEvaluationPerformed() {
         // Given - This test specifically covers line 202: ErrorInfo errorInfo = errorHandler.apply(...)
         BiFunction<Throwable, JsonNode, ErrorInfo> customErrorHandler =
-            (error, payload) -> {
-                // Verify this is called with the expected error
-                assertInstanceOf(IllegalStateException.class, error);
-                assertEquals("No evaluation was performed", error.getMessage());
-                return new ErrorInfo("NO_EVALUATION_CUSTOM", "Custom: " + error.getMessage());
-            };
+                (error, payload) -> {
+                    // Verify this is called with the expected error
+                    assertInstanceOf(IllegalStateException.class, error);
+                    assertEquals("No evaluation was performed", error.getMessage());
+                    return new ErrorInfo("NO_EVALUATION_CUSTOM", "Custom: " + error.getMessage());
+                };
 
         // When - Complete without calling any evaluate methods
         EntityCriteriaCalculationResponse response = serializer.withRequest(request)

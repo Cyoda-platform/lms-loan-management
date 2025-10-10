@@ -35,7 +35,7 @@ class ProcessingChainTest {
     private ObjectNode testPayload;
 
     // Test entity for processing chain tests
-    @SuppressWarnings({"LombokGetterMayBeUsed", "LombokSetterMayBeUsed"}) // not here.
+    @SuppressWarnings({"LombokGetterMayBeUsed"}) // not here.
     static class TestEntity implements CyodaEntity {
         private Long id;
         private String name;
@@ -51,11 +51,8 @@ class ProcessingChainTest {
         }
 
         public Long getId() { return id; }
-        public void setId(Long id) { this.id = id; }
         public String getName() { return name; }
-        public void setName(String name) { this.name = name; }
         public String getStatus() { return status; }
-        public void setStatus(String status) { this.status = status; }
 
         @Override
         public OperationSpecification getModelKey() {
@@ -219,7 +216,7 @@ class ProcessingChainTest {
     void testCustomErrorHandler() {
         // Given
         BiFunction<Throwable, JsonNode, ErrorInfo> customErrorHandler =
-            (error, data) -> new ErrorInfo("CUSTOM_ERROR", "Custom: " + error.getMessage());
+                (error, data) -> new ErrorInfo("CUSTOM_ERROR", "Custom: " + error.getMessage());
 
         Function<ProcessorSerializer.ProcessorExecutionContext, JsonNode> faultyMapper = context -> {
             throw new RuntimeException("Processing failed");
@@ -410,15 +407,6 @@ class ProcessingChainTest {
             return new EntityWithMetadata<>(transformedEntity, entityResponse.metadata());
         };
 
-        Function<EntityWithMetadata<TestEntity>, JsonNode> customConverter = entityResponse -> {
-            TestEntity entity = entityResponse.entity();
-            ObjectNode result = objectMapper.createObjectNode();
-            result.put("customId", entity.getId());
-            result.put("customName", "Custom: " + entity.getName());
-            result.put("customStatus", entity.getStatus());
-            result.put("customProcessed", true);
-            return result;
-        };
 
         // When
         EntityProcessorCalculationResponse response = serializer.withRequest(request)
@@ -506,8 +494,8 @@ class ProcessingChainTest {
     void testEntityCustomErrorHandler() {
         // Given
         BiFunction<Throwable, EntityWithMetadata<TestEntity>, ErrorInfo> customErrorHandler =
-            (error, entityResponse) -> new ErrorInfo("ENTITY_ERROR",
-                "Entity error for ID " + entityResponse.entity().getId() + ": " + error.getMessage());
+                (error, entityResponse) -> new ErrorInfo("ENTITY_ERROR",
+                        "Entity error for ID " + entityResponse.entity().getId() + ": " + error.getMessage());
 
         Function<ProcessorSerializer.ProcessorEntityResponseExecutionContext<TestEntity>, EntityWithMetadata<TestEntity>> faultyMapper = context -> {
             throw new RuntimeException("Entity processing failed");
@@ -608,7 +596,7 @@ class ProcessingChainTest {
 
         // When & Then
         assertThrows(RuntimeException.class, () ->
-            serializer.executeFunction(request, faultyFunction));
+                serializer.executeFunction(request, faultyFunction));
     }
 
     @Test
@@ -658,9 +646,9 @@ class ProcessingChainTest {
 
             EntityWithMetadata<TestEntity> entityResponse = context.entityResponse();
             TestEntity transformedEntity = new TestEntity(
-                entityResponse.entity().getId(),
-                "Processed by " + context.request().getProcessorName(),
-                "context-verified"
+                    entityResponse.entity().getId(),
+                    "Processed by " + context.request().getProcessorName(),
+                    "context-verified"
             );
             return new EntityWithMetadata<>(transformedEntity, entityResponse.metadata());
         };
@@ -686,10 +674,10 @@ class ProcessingChainTest {
     void testMultipleErrorHandlers() {
         // Given
         BiFunction<Throwable, JsonNode, ErrorInfo> firstHandler =
-            (error, data) -> new ErrorInfo("FIRST_ERROR", "First handler");
+                (error, data) -> new ErrorInfo("FIRST_ERROR", "First handler");
 
         BiFunction<Throwable, JsonNode, ErrorInfo> secondHandler =
-            (error, data) -> new ErrorInfo("SECOND_ERROR", "Second handler: " + error.getMessage());
+                (error, data) -> new ErrorInfo("SECOND_ERROR", "Second handler: " + error.getMessage());
 
         Function<ProcessorSerializer.ProcessorExecutionContext, JsonNode> faultyMapper = context -> {
             throw new RuntimeException("Test error");
@@ -984,8 +972,8 @@ class ProcessingChainTest {
         };
 
         BiFunction<Throwable, EntityWithMetadata<TestEntity>, ErrorInfo> customErrorHandler =
-            (error, entityResponse) -> new ErrorInfo("CUSTOM_CONVERSION_ERROR",
-                "Failed to convert entity " + entityResponse.entity().getId() + ": " + error.getMessage());
+                (error, entityResponse) -> new ErrorInfo("CUSTOM_CONVERSION_ERROR",
+                        "Failed to convert entity " + entityResponse.entity().getId() + ": " + error.getMessage());
 
         // When
         EntityProcessorCalculationResponse response = serializer.withRequest(request)
@@ -1170,7 +1158,7 @@ class ProcessingChainTest {
         };
 
         BiFunction<Throwable, EntityWithMetadata<TestEntity>, ErrorInfo> customErrorHandler =
-            (error, entityResponse) -> new ErrorInfo("LATE_ERROR_HANDLER", "Late handler: " + error.getMessage());
+                (error, entityResponse) -> new ErrorInfo("LATE_ERROR_HANDLER", "Late handler: " + error.getMessage());
 
         // When
         EntityProcessorCalculationResponse response = serializer.withRequest(request)
@@ -1200,8 +1188,8 @@ class ProcessingChainTest {
         };
 
         BiFunction<Throwable, EntityWithMetadata<TestEntity>, ErrorInfo> customErrorHandler =
-            (error, entityResponse) -> new ErrorInfo("CUSTOM_ENTITY_CONVERSION_ERROR",
-                "Custom handler: Failed to convert entity " + entityResponse.entity().getId() + " - " + error.getMessage());
+                (error, entityResponse) -> new ErrorInfo("CUSTOM_ENTITY_CONVERSION_ERROR",
+                        "Custom handler: Failed to convert entity " + entityResponse.entity().getId() + " - " + error.getMessage());
 
         // When
         EntityProcessorCalculationResponse response = faultySerializer.withRequest(request)
@@ -1223,8 +1211,8 @@ class ProcessingChainTest {
         };
 
         BiFunction<Throwable, EntityWithMetadata<TestEntity>, ErrorInfo> customErrorHandler =
-            (error, entityResponse) -> new ErrorInfo("CUSTOM_EXISTING_ERROR",
-                "Custom handler for existing error: " + error.getMessage());
+                (error, entityResponse) -> new ErrorInfo("CUSTOM_EXISTING_ERROR",
+                        "Custom handler for existing error: " + error.getMessage());
 
         Function<EntityWithMetadata<TestEntity>, JsonNode> converter = entityResponse -> {
             // This should never be called due to existing error

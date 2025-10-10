@@ -1,10 +1,6 @@
 package org.cyoda.cloud.api.event.common.statemachine.conf;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.*;
 
 /**
  * Base class for the generated processor definitions.
@@ -12,6 +8,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
  * jsonschema2pojo doesn't support the generation of discriminator-related annotations, so this is the workaround
  * and we just using 'existingJavaType' in json-schema to declare inheritance.
  */
+@SuppressWarnings({"LombokGetterMayBeUsed", "LombokSetterMayBeUsed"})
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonPropertyOrder({
         "type",

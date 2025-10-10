@@ -47,7 +47,6 @@ class EntityServiceImplTest {
     private static final String MODEL_NAME = "test-entity";
     private static final int MODEL_VERSION = 1;
     private static final String BUSINESS_ID_FIELD = "name";
-    private static final String TRANSITION_UPDATE = "UPDATE";
     private static final String TRANSITION_ACTIVATE = "ACTIVATE";
 
     @Mock
@@ -116,13 +115,13 @@ class EntityServiceImplTest {
     private GroupCondition createActiveStatusCondition() {
         ObjectMapper objectMapper = new ObjectMapper();
         SimpleCondition simpleCondition = new SimpleCondition()
-            .withJsonPath("$.status")
-            .withOperation(Operation.EQUALS)
-            .withValue(objectMapper.valueToTree("ACTIVE"));
+                .withJsonPath("$.status")
+                .withOperation(Operation.EQUALS)
+                .withValue(objectMapper.valueToTree("ACTIVE"));
 
         return new GroupCondition()
-            .withOperator(GroupCondition.Operator.AND)
-            .withConditions(List.of(simpleCondition));
+                .withOperator(GroupCondition.Operator.AND)
+                .withConditions(List.of(simpleCondition));
     }
 
     private ModelSpec createTestModelSpec() {
