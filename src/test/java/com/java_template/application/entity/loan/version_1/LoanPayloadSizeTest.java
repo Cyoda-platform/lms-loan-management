@@ -54,15 +54,15 @@ class LoanPayloadSizeTest {
         System.out.println("\nJSON Structure Summary:");
         System.out.println("- Parties: " + maximalLoan.getParties().size());
         System.out.println("- Facilities: " + maximalLoan.getFacilities().size());
-        
+
         if (!maximalLoan.getFacilities().isEmpty()) {
-            Loan.LoanFacility firstFacility = maximalLoan.getFacilities().get(0);
+            Loan.LoanFacility firstFacility = maximalLoan.getFacilities().getFirst();
             System.out.println("  - Tranches per facility: " + firstFacility.getTranches().size());
             System.out.println("  - Drawdowns per facility: " + firstFacility.getDrawdowns().size());
             System.out.println("  - Repayments per facility: " + firstFacility.getRepayments().size());
-            
+
             if (!firstFacility.getTranches().isEmpty()) {
-                Loan.LoanTranche firstTranche = firstFacility.getTranches().get(0);
+                Loan.LoanTranche firstTranche = firstFacility.getTranches().getFirst();
                 System.out.println("    - Fees per tranche: " + firstTranche.getFees().size());
                 System.out.println("    - Covenants per tranche: " + firstTranche.getCovenants().size());
                 System.out.println("    - Collateral per tranche: " + firstTranche.getCollateral().size());
@@ -76,7 +76,7 @@ class LoanPayloadSizeTest {
         // Assertions
         assertTrue(sizeInBytes > 0, "JSON size should be greater than 0");
         assertTrue(sizeInKB > 1, "JSON should be at least 1 KB for a maximal loan");
-        
+
         // Verify the loan is valid
         assertNotNull(maximalLoan.getLoanId());
         assertNotNull(maximalLoan.getAgreementId());
@@ -89,7 +89,7 @@ class LoanPayloadSizeTest {
      */
     private Loan createMaximalLoan() {
         Loan loan = new Loan();
-        
+
         // Required fields
         loan.setLoanId("LOAN-MAX-2024-001");
         loan.setAgreementId("AGR-SYNDICATED-2024-001");
@@ -99,32 +99,32 @@ class LoanPayloadSizeTest {
         loan.setTermMonths(36); // 3 years
         loan.setFundingDate(LocalDate.of(2024, 1, 15));
         loan.setMaturityDate(LocalDate.of(2027, 1, 15));
-        
+
         // Financial balances
         loan.setOutstandingPrincipal(new BigDecimal("450000000.00"));
         loan.setAccruedInterest(new BigDecimal("1250000.00"));
-        
+
         // Optional fields
         loan.setPurpose("Acquisition financing and general corporate purposes");
         loan.setGoverningLaw("England and Wales");
         loan.setDayCountBasis("ACT/365");
         loan.setCurrency("GBP");
-        
+
         // Validation error tracking
         loan.setValidationErrorReason(null);
-        
+
         // Create multiple parties (borrower, lenders, agent, security trustee)
         loan.setParties(createMaximalParties());
-        
+
         // Create multiple facilities (revolver + term loan)
         loan.setFacilities(createMaximalFacilities());
-        
+
         return loan;
     }
 
     private List<Loan.LoanParty> createMaximalParties() {
         List<Loan.LoanParty> parties = new ArrayList<>();
-        
+
         // Borrower
         Loan.LoanParty borrower = new Loan.LoanParty();
         borrower.setPartyId("PARTY-BORROWER-001");
@@ -135,7 +135,7 @@ class LoanPayloadSizeTest {
         borrower.setCommitmentAmount(null);
         borrower.setCommitmentCurrency(null);
         parties.add(borrower);
-        
+
         // Multiple lenders
         for (int i = 1; i <= 5; i++) {
             Loan.LoanParty lender = new Loan.LoanParty();
@@ -148,7 +148,7 @@ class LoanPayloadSizeTest {
             lender.setCommitmentCurrency("GBP");
             parties.add(lender);
         }
-        
+
         // Agent
         Loan.LoanParty agent = new Loan.LoanParty();
         agent.setPartyId("PARTY-AGENT-001");
@@ -159,7 +159,7 @@ class LoanPayloadSizeTest {
         agent.setCommitmentAmount(null);
         agent.setCommitmentCurrency(null);
         parties.add(agent);
-        
+
         // Security Trustee
         Loan.LoanParty trustee = new Loan.LoanParty();
         trustee.setPartyId("PARTY-TRUSTEE-001");
@@ -170,19 +170,19 @@ class LoanPayloadSizeTest {
         trustee.setCommitmentAmount(null);
         trustee.setCommitmentCurrency(null);
         parties.add(trustee);
-        
+
         return parties;
     }
 
     private List<Loan.LoanFacility> createMaximalFacilities() {
         List<Loan.LoanFacility> facilities = new ArrayList<>();
-        
+
         // Facility 1: Revolving Credit Facility
         facilities.add(createRevolverFacility());
-        
+
         // Facility 2: Term Loan Facility
         facilities.add(createTermLoanFacility());
-        
+
         return facilities;
     }
 
@@ -192,22 +192,22 @@ class LoanPayloadSizeTest {
         facility.setType("Revolver");
         facility.setCurrency("GBP");
         facility.setLimit(new BigDecimal("200000000.00")); // $200M
-        
+
         // Availability
         facility.setAvailability(createAvailability());
-        
+
         // Tranches
         facility.setTranches(createTranches(2)); // 2 tranches
-        
+
         // Drawdowns
         facility.setDrawdowns(createDrawdowns(3)); // 3 drawdowns
-        
+
         // Repayments
         facility.setRepayments(createRepayments(2)); // 2 repayments
-        
+
         // Prepayment terms
         facility.setPrepayment(createPrepaymentTerms());
-        
+
         return facility;
     }
 
@@ -217,22 +217,22 @@ class LoanPayloadSizeTest {
         facility.setType("Term Loan");
         facility.setCurrency("GBP");
         facility.setLimit(new BigDecimal("300000000.00")); // $300M
-        
+
         // Availability
         facility.setAvailability(createAvailability());
-        
+
         // Tranches
         facility.setTranches(createTranches(3)); // 3 tranches
-        
+
         // Drawdowns
         facility.setDrawdowns(createDrawdowns(5)); // 5 drawdowns
-        
+
         // Repayments
         facility.setRepayments(createRepayments(4)); // 4 repayments
-        
+
         // Prepayment terms
         facility.setPrepayment(createPrepaymentTerms());
-        
+
         return facility;
     }
 
@@ -252,31 +252,31 @@ class LoanPayloadSizeTest {
 
     private List<Loan.LoanTranche> createTranches(int count) {
         List<Loan.LoanTranche> tranches = new ArrayList<>();
-        
+
         for (int i = 1; i <= count; i++) {
             Loan.LoanTranche tranche = new Loan.LoanTranche();
             tranche.setTrancheId("TRANCHE-" + String.format("%03d", i));
             tranche.setLimit(new BigDecimal("100000000.00"));
             tranche.setPurpose("General corporate purposes - Tranche " + i);
-            
+
             // Interest configuration
             tranche.setInterest(createInterestConfig());
-            
+
             // Fees (3 different fee types)
             tranche.setFees(createFees());
-            
+
             // Amortization
             tranche.setAmortization(createAmortization());
-            
+
             // Covenants (5 covenants)
             tranche.setCovenants(createCovenants());
-            
+
             // Collateral (3 collateral items)
             tranche.setCollateral(createCollateral());
-            
+
             tranches.add(tranche);
         }
-        
+
         return tranches;
     }
 
