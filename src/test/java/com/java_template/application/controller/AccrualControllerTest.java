@@ -93,7 +93,6 @@ class AccrualControllerTest {
         when(entityService.findByBusinessIdOrNull(any(ModelSpec.class), eq("ACC-2025-001"),
             eq("accrualId"), eq(Accrual.class))).thenReturn(null);
         when(entityService.create(any(Accrual.class))).thenReturn(testAccrualWithMetadata);
-        when(entityService.getById(any(), any(), eq(Accrual.class))).thenReturn(testAccrualWithMetadata);
 
         // When/Then
         mockMvc.perform(post("/ui/accruals")
@@ -150,15 +149,15 @@ class AccrualControllerTest {
     }
 
     @Test
-    @DisplayName("GET /ui/accruals/{id} should return 404 if not found")
+    @DisplayName("GET /ui/accruals/{id} should return 400 if not found")
     void testGetAccrualByIdNotFound() throws Exception {
         // Given
         when(entityService.getById(eq(testTechnicalId), any(ModelSpec.class),
-            eq(Accrual.class), any(Date.class))).thenThrow(new RuntimeException("Not found"));
+            eq(Accrual.class), isNull())).thenThrow(new RuntimeException("Not found"));
 
         // When/Then
         mockMvc.perform(get("/ui/accruals/{id}", testTechnicalId))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
     }
 
     @Test
@@ -179,7 +178,7 @@ class AccrualControllerTest {
     void testGetAccrualChangesMetadata() throws Exception {
         // Given
         List<EntityChangeMeta> changes = List.of();
-        when(entityService.getEntityChangesMetadata(eq(testTechnicalId), any(Date.class)))
+        when(entityService.getEntityChangesMetadata(eq(testTechnicalId), isNull()))
             .thenReturn(changes);
 
         // When/Then

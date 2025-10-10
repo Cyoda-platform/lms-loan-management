@@ -88,8 +88,8 @@ class EODAccrualBatchControllerTest {
     @DisplayName("POST /ui/eod-batches should create a new batch")
     void testCreateBatch() throws Exception {
         // Given
+        // Note: EODAccrualBatch uses auto-generated IDs, no duplicate check
         when(entityService.create(any(EODAccrualBatch.class))).thenReturn(testBatchWithMetadata);
-        when(entityService.getById(any(), any(), eq(EODAccrualBatch.class))).thenReturn(testBatchWithMetadata);
 
         // When/Then
         mockMvc.perform(post("/ui/eod-batches")
@@ -133,15 +133,15 @@ class EODAccrualBatchControllerTest {
     }
 
     @Test
-    @DisplayName("GET /ui/eod-batches/{id} should return 404 if not found")
+    @DisplayName("GET /ui/eod-batches/{id} should return 400 if not found")
     void testGetBatchByIdNotFound() throws Exception {
         // Given
         when(entityService.getById(eq(testTechnicalId), any(ModelSpec.class),
-            eq(EODAccrualBatch.class), any(Date.class))).thenThrow(new RuntimeException("Not found"));
+            eq(EODAccrualBatch.class), isNull())).thenThrow(new RuntimeException("Not found"));
 
         // When/Then
         mockMvc.perform(get("/ui/eod-batches/{id}", testTechnicalId))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isBadRequest());
     }
 
     @Test

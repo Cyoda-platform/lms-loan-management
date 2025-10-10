@@ -1,33 +1,23 @@
 package com.java_template.application.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.java_template.application.controller.support.EntityCrudOperations;
+import com.java_template.application.controller.support.EntityCrudOperations.FieldFilter;
 import com.java_template.application.entity.loan.version_1.Loan;
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.service.EntityService;
-import com.java_template.common.util.CyodaExceptionUtil;
 import jakarta.validation.Valid;
 import org.cyoda.cloud.api.event.common.EntityChangeMeta;
-import org.cyoda.cloud.api.event.common.ModelSpec;
-import org.cyoda.cloud.api.event.common.condition.GroupCondition;
-import org.cyoda.cloud.api.event.common.condition.Operation;
-import org.cyoda.cloud.api.event.common.condition.QueryCondition;
-import org.cyoda.cloud.api.event.common.condition.SimpleCondition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.net.URI;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -41,12 +31,18 @@ import java.util.UUID;
 public class LoanController {
 
     private static final Logger logger = LoggerFactory.getLogger(LoanController.class);
-    private final EntityService entityService;
-    private final ObjectMapper objectMapper;
+    private final EntityCrudOperations<Loan> crudOps;
 
     public LoanController(EntityService entityService, ObjectMapper objectMapper) {
-        this.entityService = entityService;
-        this.objectMapper = objectMapper;
+        this.crudOps = new EntityCrudOperations<>(
+                entityService,
+                objectMapper,
+                logger,
+                Loan.ENTITY_NAME,
+                Loan.ENTITY_VERSION,
+                Loan.class,
+                "loanId"
+        );
     }
 
     /**
@@ -55,43 +51,12 @@ public class LoanController {
      */
     @PostMapping
     public ResponseEntity<EntityWithMetadata<Loan>> createLoan(@Valid @RequestBody Loan loan) {
-        try {
-            // Check for duplicate business identifier
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            EntityWithMetadata<Loan> existing = entityService.findByBusinessIdOrNull(
-                    modelSpec, loan.getLoanId(), "loanId", Loan.class);
-
-            if (existing != null) {
-                logger.warn("Loan with business ID {} already exists", loan.getLoanId());
-                ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                    HttpStatus.CONFLICT,
-                    String.format("Loan already exists with ID: %s", loan.getLoanId())
-                );
-                return ResponseEntity.of(problemDetail).build();
-            }
-
+        return crudOps.create(loan, Loan::getLoanId, l -> {
             // Calculate maturity date if not provided
-            if (loan.getMaturityDate() == null && loan.getFundingDate() != null && loan.getTermMonths() != null) {
-                loan.setMaturityDate(loan.getFundingDate().plusMonths(loan.getTermMonths()));
+            if (l.getMaturityDate() == null && l.getFundingDate() != null && l.getTermMonths() != null) {
+                l.setMaturityDate(l.getFundingDate().plusMonths(l.getTermMonths()));
             }
-
-            EntityWithMetadata<Loan> response = entityService.create(loan);
-            logger.info("Loan created with ID: {}", response.metadata().getId());
-
-            URI location = ServletUriComponentsBuilder
-                .fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(response.metadata().getId())
-                .toUri();
-
-            return ResponseEntity.created(location).body(response);
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to create loan: %s", e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        });
     }
 
     /**
@@ -102,23 +67,7 @@ public class LoanController {
     public ResponseEntity<EntityWithMetadata<Loan>> getLoanById(
             @PathVariable UUID id,
             @RequestParam(required = false) OffsetDateTime pointInTime) {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            Date pointInTimeDate = pointInTime != null
-                ? Date.from(pointInTime.toInstant())
-                : null;
-            EntityWithMetadata<Loan> response = entityService.getById(id, modelSpec, Loan.class, pointInTimeDate);
-            if (response == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to retrieve loan with ID '%s': %s", id, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.getById(id, pointInTime);
     }
 
     /**
@@ -129,25 +78,7 @@ public class LoanController {
     public ResponseEntity<EntityWithMetadata<Loan>> getLoanByBusinessId(
             @PathVariable String loanId,
             @RequestParam(required = false) OffsetDateTime pointInTime) {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            Date pointInTimeDate = pointInTime != null
-                ? Date.from(pointInTime.toInstant())
-                : null;
-            EntityWithMetadata<Loan> response = entityService.findByBusinessId(
-                    modelSpec, loanId, "loanId", Loan.class, pointInTimeDate);
-
-            if (response == null) {
-                return ResponseEntity.notFound().build();
-            }
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to retrieve loan with business ID '%s': %s", loanId, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.getByBusinessId(loanId, pointInTime);
     }
 
     /**
@@ -158,24 +89,7 @@ public class LoanController {
     public ResponseEntity<List<EntityChangeMeta>> getLoanChangesMetadata(
             @PathVariable UUID id,
             @RequestParam(required = false) OffsetDateTime pointInTime) {
-        try {
-            Date pointInTimeDate = pointInTime != null
-                ? Date.from(pointInTime.toInstant())
-                : null;
-            List<org.cyoda.cloud.api.event.common.EntityChangeMeta> changes =
-                    entityService.getEntityChangesMetadata(id, pointInTimeDate);
-            return ResponseEntity.ok(changes);
-        } catch (Exception e) {
-            // Check if it's a NOT_FOUND error (entity doesn't exist)
-            if (CyodaExceptionUtil.isNotFound(e)) {
-                return ResponseEntity.notFound().build();
-            }
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to retrieve change history for loan with ID '%s': %s", id, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.getChangesMetadata(id, pointInTime);
     }
 
     /**
@@ -187,17 +101,7 @@ public class LoanController {
             @PathVariable UUID id,
             @Valid @RequestBody Loan loan,
             @RequestParam(required = false) String transition) {
-        try {
-            EntityWithMetadata<Loan> response = entityService.update(id, loan, transition);
-            logger.info("Loan updated with ID: {}", id);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to update loan with ID '%s': %s", id, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.update(id, loan, transition);
     }
 
     /**
@@ -210,61 +114,13 @@ public class LoanController {
             @RequestParam(required = false) String state,
             @RequestParam(required = false) String partyId,
             @RequestParam(required = false) OffsetDateTime pointInTime) {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            Date pointInTimeDate = pointInTime != null
-                ? Date.from(pointInTime.toInstant())
-                : null;
 
-            List<QueryCondition> conditions = new ArrayList<>();
-
-            if (partyId != null && !partyId.trim().isEmpty()) {
-                SimpleCondition partyCondition = new SimpleCondition()
-                        .withJsonPath("$.partyId")
-                        .withOperation(Operation.EQUALS)
-                        .withValue(objectMapper.valueToTree(partyId));
-                conditions.add(partyCondition);
-            }
-
-            if (conditions.isEmpty() && (state == null || state.trim().isEmpty())) {
-                // Use paginated findAll when no filters
-                return ResponseEntity.ok(entityService.findAll(modelSpec, pageable, Loan.class, pointInTimeDate));
-            } else {
-                // For filtered results, get all matching results then manually paginate
-                List<EntityWithMetadata<Loan>> loans;
-                if (conditions.isEmpty()) {
-                    loans = entityService.findAll(modelSpec, Loan.class, pointInTimeDate);
-                } else {
-                    GroupCondition groupCondition = new GroupCondition()
-                            .withOperator(GroupCondition.Operator.AND)
-                            .withConditions(conditions);
-                    loans = entityService.search(modelSpec, groupCondition, Loan.class, pointInTimeDate);
-                }
-
-                // Filter by state if provided (state is in metadata, not entity)
-                if (state != null && !state.trim().isEmpty()) {
-                    loans = loans.stream()
-                            .filter(loan -> state.equals(loan.metadata().getState()))
-                            .toList();
-                }
-
-                // Manually paginate the filtered results
-                int start = (int) pageable.getOffset();
-                int end = Math.min(start + pageable.getPageSize(), loans.size());
-                List<EntityWithMetadata<Loan>> pageContent = start < loans.size()
-                    ? loans.subList(start, end)
-                    : new ArrayList<>();
-
-                Page<EntityWithMetadata<Loan>> page = new PageImpl<>(pageContent, pageable, loans.size());
-                return ResponseEntity.ok(page);
-            }
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to list loans: %s", e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
+        List<FieldFilter> filters = new ArrayList<>();
+        if (partyId != null && !partyId.trim().isEmpty()) {
+            filters.add(FieldFilter.equals("partyId", partyId));
         }
+
+        return crudOps.list(pageable, filters, state, pointInTime);
     }
 
     /**
@@ -273,20 +129,7 @@ public class LoanController {
      */
     @PostMapping("/{id}/submit-for-approval")
     public ResponseEntity<EntityWithMetadata<Loan>> submitForApproval(@PathVariable UUID id) {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            EntityWithMetadata<Loan> current = entityService.getById(id, modelSpec, Loan.class);
-
-            EntityWithMetadata<Loan> response = entityService.update(id, current.entity(), "submit_for_approval");
-            logger.info("Loan submitted for approval with ID: {}", id);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to submit loan for approval with ID '%s': %s", id, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.executeTransition(id, "submit_for_approval");
     }
 
     /**
@@ -295,20 +138,7 @@ public class LoanController {
      */
     @PostMapping("/{id}/approve")
     public ResponseEntity<EntityWithMetadata<Loan>> approveLoan(@PathVariable UUID id) {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            EntityWithMetadata<Loan> current = entityService.getById(id, modelSpec, Loan.class);
-
-            EntityWithMetadata<Loan> response = entityService.update(id, current.entity(), "approve_loan");
-            logger.info("Loan approved with ID: {}", id);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to approve loan with ID '%s': %s", id, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.executeTransition(id, "approve_loan");
     }
 
     /**
@@ -317,20 +147,7 @@ public class LoanController {
      */
     @PostMapping("/{id}/reject")
     public ResponseEntity<EntityWithMetadata<Loan>> rejectLoan(@PathVariable UUID id) {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            EntityWithMetadata<Loan> current = entityService.getById(id, modelSpec, Loan.class);
-
-            EntityWithMetadata<Loan> response = entityService.update(id, current.entity(), "reject_loan");
-            logger.info("Loan rejected with ID: {}", id);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to reject loan with ID '%s': %s", id, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.executeTransition(id, "reject_loan");
     }
 
     /**
@@ -339,20 +156,7 @@ public class LoanController {
      */
     @PostMapping("/{id}/fund")
     public ResponseEntity<EntityWithMetadata<Loan>> fundLoan(@PathVariable UUID id) {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            EntityWithMetadata<Loan> current = entityService.getById(id, modelSpec, Loan.class);
-
-            EntityWithMetadata<Loan> response = entityService.update(id, current.entity(), "fund_loan");
-            logger.info("Loan funded with ID: {}", id);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to fund loan with ID '%s': %s", id, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.executeTransition(id, "fund_loan");
     }
 
     /**
@@ -363,21 +167,8 @@ public class LoanController {
     public ResponseEntity<EntityWithMetadata<Loan>> generateSettlementQuote(
             @PathVariable UUID id,
             @RequestParam LocalDate settlementDate) {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            EntityWithMetadata<Loan> current = entityService.getById(id, modelSpec, Loan.class);
-
-            // Note: In a real implementation, you would pass the settlement date to the processor
-            EntityWithMetadata<Loan> response = entityService.update(id, current.entity(), "generate_settlement_quote");
-            logger.info("Settlement quote generated for loan ID: {}", id);
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to generate settlement quote for loan with ID '%s': %s", id, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        // Note: In a real implementation, you would pass the settlement date to the processor
+        return crudOps.executeTransition(id, "generate_settlement_quote");
     }
 
     /**
@@ -386,17 +177,7 @@ public class LoanController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteLoan(@PathVariable UUID id) {
-        try {
-            entityService.deleteById(id);
-            logger.info("Loan deleted with ID: {}", id);
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to delete loan with ID '%s': %s", id, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.deleteById(id);
     }
 
     /**
@@ -405,23 +186,7 @@ public class LoanController {
      */
     @DeleteMapping("/business/{loanId}")
     public ResponseEntity<Void> deleteLoanByBusinessId(@PathVariable String loanId) {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            boolean deleted = entityService.deleteByBusinessId(modelSpec, loanId, "loanId", Loan.class);
-
-            if (!deleted) {
-                return ResponseEntity.notFound().build();
-            }
-
-            logger.info("Loan deleted with business ID: {}", loanId);
-            return ResponseEntity.noContent().build();
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to delete loan with business ID '%s': %s", loanId, e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.deleteByBusinessId(loanId);
     }
 
     /**
@@ -430,17 +195,6 @@ public class LoanController {
      */
     @DeleteMapping
     public ResponseEntity<String> deleteAllLoans() {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            Integer deletedCount = entityService.deleteAll(modelSpec);
-            logger.warn("Deleted all Loans - count: {}", deletedCount);
-            return ResponseEntity.ok().body(String.format("Deleted %d loans", deletedCount));
-        } catch (Exception e) {
-            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
-                HttpStatus.BAD_REQUEST,
-                String.format("Failed to delete all loans: %s", e.getMessage())
-            );
-            return ResponseEntity.of(problemDetail).build();
-        }
+        return crudOps.deleteAll();
     }
 }
