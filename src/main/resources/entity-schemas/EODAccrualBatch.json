@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://java-template.com/entity/EODAccrualBatch.json",
+  "title": "EODAccrualBatch",
+  "description": "EODAccrualBatch orchestrates daily accrual runs for commercial loans. This entity manages the end-of-day (EOD) accrual process, coordinating the creation of individual Accrual entities for eligible loans on a specific business date (asOfDate).",
+  "type": "object",
+  "javaType": "com.java_template.application.entity.accrual.version_1.EODAccrualBatch",
+  "properties": {
+    "batchId": {
+      "type": "string",
+      "description": "Unique identifier for this batch run",
+      "javaType": "java.util.UUID"
+    },
+    "asOfDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Business date for which accruals are being calculated. Must be a valid business day per the configured calendar",
+      "javaType": "java.time.LocalDate"
+    },
+    "mode": {
+      "type": "string",
+      "description": "Mode of the batch run: TODAY for normal daily runs, BACKDATED for historical corrections",
+      "enum": ["TODAY", "BACKDATED"]
+    },
+    "initiatedBy": {
+      "type": "string",
+      "description": "User ID of the person who initiated this batch run"
+    },
+    "reasonCode": {
+      "type": "string",
+      "description": "Business reason code for the batch run. Required when mode is BACKDATED to document the justification for the historical correction. Optional for TODAY mode runs"
+    },
+    "loanFilter": {
+      "$ref": "#/definitions/LoanFilter"
+    },
+    "periodStatus": {
+      "type": "string",
+      "description": "GL period status for the asOfDate (OPEN or CLOSED). Determined during the snapshot phase. If CLOSED, accruals will be flagged as prior-period adjustments",
+      "enum": ["OPEN", "CLOSED"]
+    },
+    "cascadeFromDate": {
+      "type": "string",
+      "format": "date",
+      "description": "For back-dated runs, the date from which cascade recalculation should begin. Typically set to the day after asOfDate. Null for TODAY mode runs",
+      "javaType": "java.time.LocalDate"
+    },
+    "metrics": {
+      "$ref": "#/definitions/BatchMetrics"
+    },
+    "reportId": {
+      "type": "string",
+      "description": "UUID of the reconciliation report generated upon batch completion. Null until the batch reaches the RECONCILING state",
+      "javaType": "java.util.UUID"
+    },
+    "validationErrorReason": {
+      "type": "string",
+      "description": "Validation error tracking"
+    }
+  },
+  "required": [
+    "asOfDate",
+    "mode",
+    "initiatedBy"
+  ],
+  "definitions": {
+    "LoanFilter": {
+      "type": "object",
+      "description": "Filter criteria for selecting loans to include in an EOD accrual batch. Allows filtering by specific loan IDs or product codes. If both are null or empty, all eligible loans will be included in the batch",
+      "properties": {
+        "loanIds": {
+          "type": "array",
+          "description": "Optional list of specific loan IDs to include in the batch. If null or empty, no loan ID filtering is applied",
+          "items": {
+            "type": "string",
+            "javaType": "java.util.UUID"
+          }
+        },
+        "productCodes": {
+          "type": "array",
+          "description": "Optional list of product codes to include in the batch. If null or empty, no product code filtering is applied",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "BatchMetrics": {
+      "type": "object",
+      "description": "Metrics tracking the progress and results of an EOD accrual batch run. These metrics are updated as the batch progresses through its lifecycle, providing visibility into the number of loans processed, accruals created, and the financial totals of debits and credits posted",
+      "properties": {
+        "eligibleLoans": {
+          "type": "integer",
+          "description": "Number of loans eligible for accrual processing in this batch"
+        },
+        "processedLoans": {
+          "type": "integer",
+          "description": "Number of loans that have been processed (successfully or with errors)"
+        },
+        "accrualsCreated": {
+          "type": "integer",
+          "description": "Number of accrual entities created by this batch"
+        },
+        "postings": {
+          "type": "integer",
+          "description": "Number of journal entry postings made by this batch"
+        },
+        "debited": {
+          "type": "number",
+          "description": "Total amount debited across all journal entries",
+          "javaType": "java.math.BigDecimal"
+        },
+        "credited": {
+          "type": "number",
+          "description": "Total amount credited across all journal entries",
+          "javaType": "java.math.BigDecimal"
+        },
+        "imbalances": {
+          "type": "integer",
+          "description": "Number of imbalances detected (where debits != credits)"
+        }
+      }
+    }
+  }
+}
+

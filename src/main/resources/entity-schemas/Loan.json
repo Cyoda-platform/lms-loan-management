@@ -79,6 +79,10 @@
       "items": {
         "$ref": "#/definitions/LoanFacility"
       }
+    },
+    "validationErrorReason": {
+      "type": "string",
+      "description": "Validation error tracking"
     }
   },
   "required": [

@@ -26,15 +26,15 @@
       "type": "string",
       "description": "Role of the party (e.g., Borrower, Lender, Agent, Security Trustee)"
     },
-    "status": {
-      "type": "string",
-      "description": "Status of the party (e.g., ACTIVE, INACTIVE)"
-    },
     "contact": {
       "$ref": "#/definitions/PartyContact"
     },
     "address": {
       "$ref": "#/definitions/PartyAddress"
+    },
+    "validationErrorReason": {
+      "type": "string",
+      "description": "Validation error tracking"
     }
   },
   "required": [

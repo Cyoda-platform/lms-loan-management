@@ -40,12 +40,12 @@
     "currency": {
       "type": "string"
     },
-    "status": {
-      "type": "string",
-      "description": "Managed by workflow state machine"
-    },
     "audit": {
       "$ref": "#/definitions/SettlementAudit"
+    },
+    "validationErrorReason": {
+      "type": "string",
+      "description": "Validation error tracking"
     }
   },
   "required": [

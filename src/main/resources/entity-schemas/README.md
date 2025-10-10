@@ -8,11 +8,12 @@ The following entity schemas are available:
 
 1. **Party.json** - Legal entities (borrowers, lenders, agents) that participate in loan agreements
 2. **Loan.json** - Funded commercial loans under servicing (aggregate root for financial activities)
-3. **Accrual.json** - Daily interest calculation records for active loans
-4. **Payment.json** - Payment records showing allocation to interest, fees, and principal
-5. **SettlementQuote.json** - Early loan settlement quotes with expiration dates
-6. **GLBatch.json** - Batches of summarized accounting entries for General Ledger posting
-7. **GLLine.json** - Individual debit/credit lines within GL batches
+3. **Accrual.json** - Daily interest accrual records with embedded journal entries
+4. **EODAccrualBatch.json** - End-of-day accrual batch orchestration for processing multiple loans
+5. **Payment.json** - Payment records showing allocation to interest, fees, and principal
+6. **SettlementQuote.json** - Early loan settlement quotes with expiration dates
+7. **GLBatch.json** - Batches of summarized accounting entries for General Ledger posting
+8. **GLLine.json** - Individual debit/credit lines within GL batches
 
 ## Schema Structure
 
@@ -89,9 +90,13 @@ Many entities contain nested classes for complex data structures:
 - `LoanMandatory` - Mandatory prepayment
 
 ### Accrual
-- `AccrualCalculation` - Calculation details
-- `AccrualSubLedgerEntry` - Sub-ledger entries
-- `AccrualAudit` - Audit information
+- `PrincipalSnapshot` - Snapshot of principal balance used for calculation
+- `JournalEntry` - Embedded journal entries with inheritance contract
+- `AccrualError` - Error information for failed accruals
+
+### EODAccrualBatch
+- `LoanFilter` - Filter criteria for selecting loans
+- `BatchMetrics` - Progress and results tracking
 
 ### Payment
 - `PaymentAllocation` - Payment allocation details

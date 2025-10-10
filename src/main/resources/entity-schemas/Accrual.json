@@ -2,131 +2,160 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://java-template.com/entity/Accrual.json",
   "title": "Accrual",
-  "description": "This entity records the result of the daily interest calculation for each active loan, creating an immutable audit trail of interest accruals.",
+  "description": "Accrual entity representing daily interest computation for a loan as-of a specific date. This is the single source of truth for accrual data, with embedded journal entries that follow an inheritance contract.",
   "type": "object",
   "javaType": "com.java_template.application.entity.accrual.version_1.Accrual",
   "properties": {
     "accrualId": {
       "type": "string",
-      "description": "Required business identifier field"
+      "description": "Unique identifier for this accrual"
     },
     "loanId": {
       "type": "string",
-      "description": "Reference to the Loan entity"
+      "description": "Reference to the loan for which this accrual is calculated"
     },
-    "valueDate": {
+    "asOfDate": {
       "type": "string",
       "format": "date",
-      "description": "Date for which interest is being accrued",
+      "description": "Business date for which this accrual is calculated. Also serves as the effective date for all journal entries",
       "javaType": "java.time.LocalDate"
     },
-    "principalBase": {
-      "type": "number",
-      "description": "Outstanding principal at start of day",
-      "javaType": "java.math.BigDecimal"
-    },
-    "effectiveRate": {
-      "type": "number",
-      "description": "APR used for calculation",
-      "javaType": "java.math.BigDecimal"
-    },
-    "dayCountBasis": {
+    "currency": {
       "type": "string",
-      "description": "Day count basis (e.g., ACT/365, ACT/360, 30/360)"
+      "description": "Currency for all amounts in this accrual (ISO-4217 code)"
     },
-    "calculation": {
-      "$ref": "#/definitions/AccrualCalculation"
+    "aprId": {
+      "type": "string",
+      "description": "Reference to the APR (Annual Percentage Rate) used for calculation"
     },
-    "accruedAmount": {
+    "dayCountConvention": {
+      "type": "string",
+      "description": "Day count convention used for interest calculation (ACT_360, ACT_365, THIRTY_360)",
+      "enum": ["ACT_360", "ACT_365", "THIRTY_360"]
+    },
+    "dayCountFraction": {
       "type": "number",
-      "description": "Calculated interest amount (8 decimal precision)",
+      "description": "Calculated day count fraction (e.g., 1/360 for ACT_360)",
       "javaType": "java.math.BigDecimal"
     },
-    "subLedgerEntries": {
+    "principalSnapshot": {
+      "$ref": "#/definitions/PrincipalSnapshot"
+    },
+    "interestAmount": {
+      "type": "number",
+      "description": "Calculated interest amount for the day. Formula: principalSnapshot.amount × APR × dayCountFraction",
+      "javaType": "java.math.BigDecimal"
+    },
+    "postingTimestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the accrual was posted to the subledger",
+      "javaType": "java.time.OffsetDateTime"
+    },
+    "priorPeriodFlag": {
+      "type": "boolean",
+      "description": "Flag indicating if this is a prior-period adjustment (back-dated into closed GL month)",
+      "javaType": "java.lang.Boolean"
+    },
+    "runId": {
+      "type": "string",
+      "description": "Reference to the batch run that produced this accrual (optional)"
+    },
+    "version": {
+      "type": "integer",
+      "description": "Version number for this accrual (for optimistic locking)",
+      "javaType": "java.lang.Integer"
+    },
+    "supersedesAccrualId": {
+      "type": "string",
+      "description": "Reference to the accrual being superseded (for rebook scenarios). When set, this accrual replaces a prior accrual for the same asOfDate"
+    },
+    "journalEntries": {
       "type": "array",
+      "description": "Embedded journal entries for this accrual. These entries inherit asOfDate, currency, loanId, postingTimestamp, priorPeriodFlag, and runId",
       "items": {
-        "$ref": "#/definitions/AccrualSubLedgerEntry"
+        "$ref": "#/definitions/JournalEntry"
       }
     },
-    "audit": {
-      "$ref": "#/definitions/AccrualAudit"
+    "error": {
+      "$ref": "#/definitions/AccrualError"
+    },
+    "validationErrorReason": {
+      "type": "string",
+      "description": "Validation error tracking"
     }
   },
   "required": [
-    "accrualId",
     "loanId",
-    "valueDate",
-    "principalBase",
-    "effectiveRate",
-    "dayCountBasis"
+    "asOfDate",
+    "currency"
   ],
   "definitions": {
-    "AccrualCalculation": {
+    "PrincipalSnapshot": {
       "type": "object",
-      "description": "Nested class for calculation details",
+      "description": "Snapshot of the loan's principal balance used for accrual calculation",
       "properties": {
-        "formula": {
-          "type": "string",
-          "description": "Formula used (e.g., principalBase * effectiveRate * dcf)"
-        },
-        "dayCountFraction": {
+        "amount": {
           "type": "number",
-          "description": "Fraction of year for this day",
+          "description": "The principal amount at the time of snapshot",
           "javaType": "java.math.BigDecimal"
         },
-        "daysInYear": {
-          "type": "integer",
-          "description": "Days in year (365, 360, etc.)",
-          "javaType": "java.lang.Integer"
-        },
-        "actualDays": {
-          "type": "integer",
-          "description": "Actual days for ACT calculations",
-          "javaType": "java.lang.Integer"
+        "effectiveAtStartOfDay": {
+          "type": "boolean",
+          "description": "Whether this principal amount is effective at the start of the day (true) or end of day (false) for the asOfDate",
+          "javaType": "java.lang.Boolean"
         }
       }
     },
-    "AccrualSubLedgerEntry": {
+    "JournalEntry": {
       "type": "object",
-      "description": "Nested class for sub-ledger entries",
+      "description": "Embedded journal entry within an Accrual entity. Journal entries inherit asOfDate, currency, loanId, postingTimestamp, priorPeriodFlag, and runId from the parent Accrual",
       "properties": {
         "entryId": {
-          "type": "string"
+          "type": "string",
+          "description": "Unique identifier for this journal entry"
         },
         "account": {
           "type": "string",
-          "description": "Account name (e.g., Interest Receivable, Interest Income)"
+          "description": "General ledger account for this entry (INTEREST_RECEIVABLE, INTEREST_INCOME)",
+          "enum": ["INTEREST_RECEIVABLE", "INTEREST_INCOME"]
         },
-        "type": {
+        "direction": {
           "type": "string",
-          "description": "Entry type (DEBIT or CREDIT)"
+          "description": "Direction of the entry (DR or CR)",
+          "enum": ["DR", "CR"]
         },
         "amount": {
           "type": "number",
+          "description": "Amount of the entry in the currency inherited from parent Accrual",
           "javaType": "java.math.BigDecimal"
+        },
+        "kind": {
+          "type": "string",
+          "description": "Kind of entry (ORIGINAL, REVERSAL, or REPLACEMENT)",
+          "enum": ["ORIGINAL", "REVERSAL", "REPLACEMENT"]
+        },
+        "adjustsEntryId": {
+          "type": "string",
+          "description": "Reference to the entry being adjusted (required for REVERSAL entries). Points to the entryId of the original entry being reversed"
+        },
+        "memo": {
+          "type": "string",
+          "description": "Optional memo/description for the entry"
         }
       }
     },
-    "AccrualAudit": {
+    "AccrualError": {
       "type": "object",
-      "description": "Nested class for audit information",
+      "description": "Error information for failed accruals",
       "properties": {
-        "createdAt": {
+        "code": {
           "type": "string",
-          "format": "date-time",
-          "javaType": "java.time.LocalDateTime"
+          "description": "Error code identifying the type of failure (e.g., INVALID_PRINCIPAL, MISSING_APR, CALCULATION_ERROR)"
         },
-        "createdBy": {
+        "message": {
           "type": "string",
-          "description": "Usually System/EOD_Processor"
-        },
-        "postedAt": {
-          "type": "string",
-          "format": "date-time",
-          "javaType": "java.time.LocalDateTime"
-        },
-        "postedBy": {
-          "type": "string"
+          "description": "Human-readable error message describing the failure"
         }
       }
     }

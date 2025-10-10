@@ -45,10 +45,6 @@
       "type": "string",
       "description": "External reference (e.g., bank reference)"
     },
-    "status": {
-      "type": "string",
-      "description": "Managed by workflow state machine"
-    },
     "allocation": {
       "$ref": "#/definitions/PaymentAllocation"
     },
@@ -60,6 +56,10 @@
     },
     "audit": {
       "$ref": "#/definitions/PaymentAudit"
+    },
+    "validationErrorReason": {
+      "type": "string",
+      "description": "Validation error tracking"
     }
   },
   "required": [
