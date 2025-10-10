@@ -53,29 +53,29 @@ The Loan Management System is built upon a modern, event-driven architecture. Th
 
 To provide an unambiguous visual representation of the system's boundaries and its interactions with users and other systems, the following System Context Diagram is provided.5 This diagram offers a clear, high-level overview of the LMS ecosystem, making it easier for all stakeholders to understand its place within the broader enterprise architecture.
 
-Code snippet
-
-graph TD  
-    subgraph Loan Management System (LMS)  
-        A  
-        B\[Operational UI\]  
-        C\[API Layer\]  
-        D  
-        A \--\> B  
-        A \--\> C  
-        A \--\> D  
+```mermaid
+graph TD
+    subgraph Loan Management System
+        A
+        B[Operational UI]
+        C[API Layer]
+        D
+        A --> B
+        A --> C
+        A --> D
     end
 
-    U1\[Loan Administrator\] \-- Uses \--\> B  
-    U2\[Payment Processor\] \-- Uses \--\> B  
-    U3\[Finance Manager\] \-- Uses \--\> B
+    U1[Loan Administrator] -- Uses --> B
+    U2[Payment Processor] -- Uses --> B
+    U3[Finance Manager] -- Uses --> B
 
-    C \-- Exports GL Batch (API/File) \--\> S1
+    C -- Exports GL Batch (API/File) --> S1
 
-    style U1 fill:\#e6f2ff,stroke:\#333,stroke-width:2px  
-    style U2 fill:\#e6f2ff,stroke:\#333,stroke-width:2px  
-    style U3 fill:\#e6f2ff,stroke:\#333,stroke-width:2px  
-    style S1 fill:\#f2f2f2,stroke:\#333,stroke-width:2px
+    style U1 fill:#e6f2ff,stroke:#333,stroke-width:2px
+    style U2 fill:#e6f2ff,stroke:#333,stroke-width:2px
+    style U3 fill:#e6f2ff,stroke:#333,stroke-width:2px
+    style S1 fill:#f2f2f2,stroke:#333,stroke-width:2px
+```
 
 **Diagram Components:**
 
@@ -249,36 +249,36 @@ While user stories are effective for capturing discrete requirements, Business P
 
 This diagram illustrates the workflow for generating and exporting the monthly GL batch, showing the interaction between the system's automated tasks and the manual actions performed by the Finance Manager.
 
-Code snippet
-
-graph TD  
-    subgraph Finance Manager  
-        A(Review Prepared Batch)  
-        B{Batch Correct?}  
-        C(Approve Export \- Maker)  
-        D(Approve Export \- Checker)  
-        E(Handle Export Failure)  
+```mermaid
+graph TD
+    subgraph Finance Manager
+        A(Review Prepared Batch)
+        B{Batch Correct?}
+        C(Approve Export - Maker)
+        D(Approve Export - Checker)
+        E(Handle Export Failure)
     end
 
-    subgraph LMS System  
-        F(Timer: Month-End)  
-        G(Create GLBatch in 'OPEN' state)  
-        H(Summarize Period Activity)  
-        I(Transition to 'PREPARED')  
-        J(Generate Export File)  
-        K(Send File to GL System)  
-        L(Transition to 'EXPORTED')  
-        M(Receive GL Acknowledgment)  
-        N(Transition to 'POSTED')  
+    subgraph LMS System
+        F(Timer: Month-End)
+        G(Create GLBatch in 'OPEN' state)
+        H(Summarize Period Activity)
+        I(Transition to 'PREPARED')
+        J(Generate Export File)
+        K(Send File to GL System)
+        L(Transition to 'EXPORTED')
+        M(Receive GL Acknowledgment)
+        N(Transition to 'POSTED')
     end
 
-    F \--\> G \--\> H \--\> I \--\> A  
-    A \--\> B  
-    B \-- Yes \--\> C \--\> D \--\> J  
-    B \-- No \--\> E  
-    J \--\> K \--\> L  
-    K \-- Success \--\> M \--\> N  
-    K \-- Failure \--\> E
+    F --> G --> H --> I --> A
+    A --> B
+    B -- Yes --> C --> D --> J
+    B -- No --> E
+    J --> K --> L
+    K -- Success --> M --> N
+    K -- Failure --> E
+```
 
 ### **2.3. Detailed Feature Specifications & Business Rules**
 
@@ -334,14 +334,14 @@ SettlementQuote: This entity stores the details of a quote for an early loan set
 
 GLBatch: A batch of summarized accounting entries prepared at the end of a month for posting to the General Ledger. It includes header information, control totals, and an embedded list of GL lines as a sub-structure within the entity.
 
-Code snippet
-
+```mermaid
 erDiagram
     Party ||--o{ Loan : "has"
     Loan ||--o{ Payment : "receives"
     Loan ||--o{ Accrual : "generates"
     Loan ||--o{ SettlementQuote : "can have"
     GLBatch }o--|| Period : "summarizes accruals and payments for"
+```
 
 
 
@@ -380,14 +380,14 @@ From the `validation_error` state, users can manually trigger a `FIX` transition
 
 #### **Example (Loan Entity)**
 
-Code snippet
-
+```mermaid
 stateDiagram-v2
-    \[\*\] \--\> initial
-    initial \--\> draft: NewLoanValidationCriterion
-    initial \--\> validation\_error: NewLoanValidationFailedCriterion
-    validation\_error \--\> initial: FIX (manual)
-    draft \--\> approval\_pending: submit\_for\_approval
+    [*] --> initial
+    initial --> draft: NewLoanValidationCriterion
+    initial --> validation_error: NewLoanValidationFailedCriterion
+    validation_error --> initial: FIX (manual)
+    draft --> approval_pending: submit_for_approval
+```
 
 This pattern must be preserved in all entity workflows.
 
@@ -399,244 +399,400 @@ Each core business object is modeled as an Entity with a structured set of attri
 
 Represents a funded commercial loan under servicing. It is the aggregate root for most financial activities.
 
-{  
-  "agreement\_id": "AG-2025-001",  
-  "version": 1,  
-  "effective\_date": "2025-01-15",  
-  "maturity\_date": "2030-01-15",  
-  "governing\_law": "England and Wales",  
-  "purpose": "General corporate purposes",  
-  "parties": {  
-    "borrowers": \[  
-      {  
-        "party\_id": "BORR1",  
-        "name": "Example Borrower Ltd",  
-        "lei": "5493001KJTIIGC8Y1R12",  
-        "jurisdiction": "GB"  
-      }  
-    \],  
-    "lenders": \[  
-      {  
-        "party\_id": "LEND1",  
-        "name": "Example Bank plc",  
-        "lei": "549300ABCDEFGHJKLMN1",  
-        "commitment\_ccy": "GBP",  
-        "commitment\_amount": 15000000,  
-        "role": "Lender"  
-      }  
-    \],  
-    "agent": {  
-      "party\_id": "AGENT1",  
-      "name": "Agent Bank plc",  
-      "role": "Facility Agent"  
-    },  
-    "security\_trustee": {  
-      "party\_id": "SEC1",  
-      "name": "Security Trustee Ltd",  
-      "role": "Security Agent"  
-    }  
-  },  
-  "facilities": \[  
-    {  
-      "facility\_id": "FAC1",  
-      "type": "Revolver",  
-      "currency": "GBP",  
-      "limit": 10000000,  
-      "availability": {  
-        "start\_date": "2025-01-15",  
-        "end\_date": "2027-01-15",  
-        "conditions\_precedent": \["Signed FA", "Security perfected", "CP certificates"\]  
-      },  
-      "tranches": \[  
-        {  
-          "tranche\_id": "TR1",  
-          "limit": 7000000,  
-          "purpose": "Working capital",  
-          "interest": {  
-            "index": "SONIA",  
-            "tenor": "1M",  
-            "spread\_bps": 250,  
-            "floor\_rate": 0.0,  
-            "day\_count": "ACT/365F",  
-            "rate\_reset": {  
-              "frequency": "Monthly",  
-              "business\_day\_convention": "ModifiedFollowing"  
-            },  
-            "compounding": "Simple"  
-          },  
-          "fees": \[  
-            {  
-              "fee\_id": "F1",  
-              "type": "Commitment",  
-              "basis": "Unused",  
-              "rate\_bps": 50,  
-              "accrual\_day\_count": "ACT/365F",  
-              "pay\_frequency": "Quarterly"  
-            },  
-            {  
-              "fee\_id": "F2",  
-              "type": "Arrangement",  
-              "amount": 50000,  
-              "pay\_on": "Signing"  
-            }  
-          \],  
-          "amortization": {  
-            "type": "Bullet",  
-            "schedule": \[\]  
-          },  
-          "covenants": \[  
-            {  
-              "covenant\_id": "COV1",  
-              "category": "Financial",  
-              "name": "Net Leverage",  
-              "definition": "NetDebt/EBITDA",  
-              "threshold\_operator": "\<=",  
-              "threshold\_value": 3.0,  
-              "test\_frequency": "Quarterly",  
-              "cure\_rights": { "allowed": true, "period\_days": 10 }  
-            }  
-          \],  
-          "collateral": \[  
-            {  
-              "collateral\_id": "COL1",  
-              "type": "Debenture",  
-              "jurisdiction": "GB",  
-              "description": "All-asset fixed and floating charge"  
-            }  
-          \]  
-        }  
-      \],  
-      "drawdowns": \[  
-        {  
-          "draw\_id": "DW1",  
-          "tranche\_id": "TR1",  
-          "request\_date": "2025-02-01",  
-          "value\_date": "2025-02-03",  
-          "amount": 1000000,  
-          "purpose": "Working capital",  
-          "fx": { "trade\_ccy": "GBP", "settle\_ccy": "GBP", "rate": 1.0 }  
-        }  
-      \],  
-      "repayments": \[  
-        {  
-          "repayment\_id": "RP1",  
-          "type": "Scheduled",  
-          "due\_date": "2030-01-15",  
-          "amount": 1000000,  
-          "allocation": { "principal": 1000000, "interest": 0, "fees": 0 }  
-        }  
-      \],  
-      "prepayment": {  
-        "voluntary": {  
-          "notice\_days": 3,  
-          "break\_costs\_applicable": true,  
-          "minimum\_amount": 100000  
-        },  
-        "mandatory": \[  
-          {  
-            "trigger": "ExcessCashFlow",  
-            "sweep\_percent": 50,  
-            "definition\_ref": "ECF definition in FA"  
-          }  
-        \]  
-      }  
-    },  
-    {  
-      "facility\_id": "FAC2",  
-      "type": "TermLoan",  
-      "currency": "GBP",  
-      "limit": 5000000,  
-      "amortization": {  
-        "type": "Schedule",  
-        "schedule": \[  
-          { "date": "2026-01-31", "amount": 250000 },  
-          { "date": "2027-01-31", "amount": 250000 }  
-        \]  
-      },  
-      "interest": {  
-        "index": "SONIA",  
-        "tenor": "3M",  
-        "spread\_bps": 275,  
-        "day\_count": "ACT/365F"  
-      }  
-    }  
-  \],  
-  "payments": \[  
-    {  
-      "payment\_id": "PMT1",  
-      "date": "2025-03-03",  
-      "type": "Interest",  
-      "currency": "GBP",  
-      "amount": 20833.33,  
-      "payer\_party\_id": "BORR1",  
-      "payee\_party\_id": "LEND1",  
-      "related\_to": { "draw\_id": "DW1", "period\_start": "2025-02-03", "period\_end": "2025-03-03" }  
-    }  
-  \],  
-  "events\_of\_default": \[  
-    {  
-      "eod\_id": "EOD1",  
-      "name": "Non-payment",  
-      "grace\_days": 3,  
-      "remedy": "Agent may accelerate"  
-    }  
-  \],  
-  "tax": {  
-    "gross\_up": true,  
-    "withholding\_applicable": true,  
-    "treaty\_benefits": false  
-  },  
-  "undertakings": \[  
-    { "id": "UND1", "category": "Information", "text": "Provide quarterly management accounts" }  
-  \],  
-  "representations": \[  
-    { "id": "REP1", "text": "Due incorporation and authority" }  
-  \],  
-  "documents": \[  
-    { "doc\_id": "DOC1", "type": "FacilityAgreement", "storage\_ref": "s3://bucket/fa.pdf" },  
-    { "doc\_id": "DOC2", "type": "CPChecklist", "storage\_ref": "s3://bucket/cp.xlsx" }  
-  \],  
-  "calendars": {  
-    "business\_day\_calendar": "London",  
-    "holiday\_calendars": \["London", "TARGET2"\]  
-  },  
-  "audit": {  
-    "created\_at": "2025-01-10T12:00:00Z",  
-    "created\_by": "legal\_ops",  
-    "amendments": \[  
-      {  
-        "amendment\_id": "AMD1",  
-        "date": "2026-06-15",  
-        "summary": "Margin increase 25bps on TR1",  
-        "sections\_changed": \["facilities\[0\].tranches\[0\].interest.spread\_bps"\]  
-      }  
-    \]  
-  },  
-  "metadata": {  
-    "lma\_style": true,  
-    "confidentiality": "Private",  
-    "tags": \["Syndicated", "Secured"\]  
-  }  
+**NOTE:** The following extended example represents a future-state comprehensive loan structure that includes legal, compliance, and document management features beyond the current MVP scope. See section 3.3.1.1 for the actual MVP implementation.
+
+##### **3.3.1.0. Extended Loan Structure (Future State)**
+
+```json
+{
+  "loan_id": "LOAN-2025-001",
+  "agreement_id": "AG-2025-001",
+  "version": 1,
+  "effective_date": "2025-01-15",
+  "maturity_date": "2030-01-15",
+  "governing_law": "England and Wales",
+  "purpose": "General corporate purposes",
+  "parties": [
+    {
+      "party_id": "BORR1",
+      "name": "Example Borrower Ltd",
+      "lei": "5493001KJTIIGC8Y1R12",
+      "role": "Borrower",
+      "jurisdiction": "GB",
+      "commitment_amount": null,
+      "commitment_currency": null
+    },
+    {
+      "party_id": "LEND1",
+      "name": "Example Bank plc",
+      "lei": "549300ABCDEFGHJKLMN1",
+      "role": "Lender",
+      "jurisdiction": "GB",
+      "commitment_amount": 15000000,
+      "commitment_currency": "GBP"
+    },
+    {
+      "party_id": "AGENT1",
+      "name": "Agent Bank plc",
+      "lei": null,
+      "role": "Agent",
+      "jurisdiction": "GB",
+      "commitment_amount": null,
+      "commitment_currency": null
+    },
+    {
+      "party_id": "SEC1",
+      "name": "Security Trustee Ltd",
+      "lei": null,
+      "role": "Security Trustee",
+      "jurisdiction": "GB",
+      "commitment_amount": null,
+      "commitment_currency": null
+    }
+  ],
+  "facilities": [
+    {
+      "facility_id": "FAC1",
+      "type": "Revolver",
+      "currency": "GBP",
+      "limit": 10000000,
+      "availability": {
+        "start_date": "2025-01-15",
+        "end_date": "2027-01-15",
+        "conditions_precedent": ["Signed FA", "Security perfected", "CP certificates"]
+      },
+      "tranches": [
+        {
+          "tranche_id": "TR1",
+          "limit": 7000000,
+          "purpose": "Working capital",
+          "interest": {
+            "index": "SONIA",
+            "tenor": "1M",
+            "spread_bps": 250,
+            "floor_rate": 0.0,
+            "day_count": "ACT/365F",
+            "rate_reset": {
+              "frequency": "Monthly",
+              "business_day_convention": "ModifiedFollowing"
+            },
+            "compounding": "Simple"
+          },
+          "fees": [
+            {
+              "fee_id": "F1",
+              "type": "Commitment",
+              "basis": "Unused",
+              "rate_bps": 50,
+              "accrual_day_count": "ACT/365F",
+              "pay_frequency": "Quarterly"
+            },
+            {
+              "fee_id": "F2",
+              "type": "Arrangement",
+              "amount": 50000,
+              "pay_on": "Signing"
+            }
+          ],
+          "amortization": {
+            "type": "Bullet",
+            "schedule": []
+          },
+          "covenants": [
+            {
+              "covenant_id": "COV1",
+              "category": "Financial",
+              "name": "Net Leverage",
+              "definition": "NetDebt/EBITDA",
+              "threshold_operator": "<=",
+              "threshold_value": 3.0,
+              "test_frequency": "Quarterly",
+              "cure_rights": { "allowed": true, "period_days": 10 }
+            }
+          ],
+          "collateral": [
+            {
+              "collateral_id": "COL1",
+              "type": "Debenture",
+              "jurisdiction": "GB",
+              "description": "All-asset fixed and floating charge"
+            }
+          ]
+        }
+      ],
+      "drawdowns": [
+        {
+          "draw_id": "DW1",
+          "tranche_id": "TR1",
+          "request_date": "2025-02-01",
+          "value_date": "2025-02-03",
+          "amount": 1000000,
+          "purpose": "Working capital",
+          "fx": { "trade_ccy": "GBP", "settle_ccy": "GBP", "rate": 1.0 }
+        }
+      ],
+      "repayments": [
+        {
+          "repayment_id": "RP1",
+          "type": "Scheduled",
+          "due_date": "2030-01-15",
+          "amount": 1000000,
+          "allocation": { "principal": 1000000, "interest": 0, "fees": 0 }
+        }
+      ],
+      "prepayment": {
+        "voluntary": {
+          "notice_days": 3,
+          "break_costs_applicable": true,
+          "minimum_amount": 100000,
+          "multiple_amount": 50000
+        },
+        "mandatory": {
+          "events": ["Asset Sale", "Insurance Proceeds", "Excess Cash Flow"],
+          "threshold": 100000,
+          "application": "Pro Rata"
+        }
+      }
+    },
+    {
+      "facility_id": "FAC2",
+      "type": "TermLoan",
+      "currency": "GBP",
+      "limit": 5000000,
+      "tranches": [
+        {
+          "tranche_id": "TR2",
+          "limit": 5000000,
+          "purpose": "Acquisition financing",
+          "interest": {
+            "index": "SONIA",
+            "tenor": "3M",
+            "spread_bps": 275,
+            "day_count": "ACT/365F"
+          },
+          "amortization": {
+            "type": "Schedule",
+            "schedule": [
+              "2026-01-31: 250000",
+              "2027-01-31: 250000"
+            ]
+          },
+          "fees": [],
+          "covenants": [],
+          "collateral": []
+        }
+      ],
+      "drawdowns": [],
+      "repayments": [],
+      "prepayment": null
+    }
+  ],
+  "payments": [
+    {
+      "payment_id": "PMT1",
+      "date": "2025-03-03",
+      "type": "Interest",
+      "currency": "GBP",
+      "amount": 20833.33,
+      "payer_party_id": "BORR1",
+      "payee_party_id": "LEND1",
+      "related_to": { "draw_id": "DW1", "period_start": "2025-02-03", "period_end": "2025-03-03" }
+    }
+  ],
+  "events_of_default": [
+    {
+      "eod_id": "EOD1",
+      "name": "Non-payment",
+      "grace_days": 3,
+      "remedy": "Agent may accelerate"
+    }
+  ],
+  "tax": {
+    "gross_up": true,
+    "withholding_applicable": true,
+    "treaty_benefits": false
+  },
+  "undertakings": [
+    { "id": "UND1", "category": "Information", "text": "Provide quarterly management accounts" }
+  ],
+  "representations": [
+    { "id": "REP1", "text": "Due incorporation and authority" }
+  ],
+  "documents": [
+    { "doc_id": "DOC1", "type": "FacilityAgreement", "storage_ref": "s3://bucket/fa.pdf" },
+    { "doc_id": "DOC2", "type": "CPChecklist", "storage_ref": "s3://bucket/cp.xlsx" }
+  ],
+  "calendars": {
+    "business_day_calendar": "London",
+    "holiday_calendars": ["London", "TARGET2"]
+  },
+  "audit": {
+    "created_at": "2025-01-10T12:00:00Z",
+    "created_by": "legal_ops",
+    "amendments": [
+      {
+        "amendment_id": "AMD1",
+        "date": "2026-06-15",
+        "summary": "Margin increase 25bps on TR1",
+        "sections_changed": ["facilities[0].tranches[0].interest.spread_bps"]
+      }
+    ]
+  },
+  "metadata": {
+    "lma_style": true,
+    "confidentiality": "Private",
+    "tags": ["Syndicated", "Secured"]
+  }
 }
+```
 
-* **Attributes:Finite State Machine (FSM) Diagram:**
+**Future State Features Not Yet Implemented:**
+- `payments` array (handled as separate Payment entity in MVP)
+- `events_of_default` array
+- `tax` configuration object
+- `undertakings` array
+- `representations` array
+- `documents` array with storage references
+- `calendars` configuration
+- `audit` trail with amendments
+- `metadata` tags and classification
+- `version` and `effective_date` fields
 
-Code snippet
+##### **3.3.1.1. MVP Loan Structure (Current Implementation)**
 
+The current MVP implementation focuses on core loan servicing operations with simplified structure:
+
+```json
+{
+  "loan_id": "LOAN-2025-001",
+  "agreement_id": "AG-2025-001",
+  "party_id": "BORR1",
+  "principal_amount": 500000.00,
+  "apr": 5.75,
+  "term_months": 36,
+  "funding_date": "2025-01-15",
+  "maturity_date": "2028-01-15",
+  "outstanding_principal": 500000.00,
+  "accrued_interest": 0.00,
+  "purpose": "General corporate purposes",
+  "governing_law": "England and Wales",
+  "day_count_basis": "ACT/365",
+  "currency": "GBP",
+  "parties": [
+    {
+      "party_id": "BORR1",
+      "name": "Example Borrower Ltd",
+      "lei": "5493001KJTIIGC8Y1R12",
+      "role": "Borrower",
+      "jurisdiction": "GB",
+      "commitment_amount": null,
+      "commitment_currency": null
+    },
+    {
+      "party_id": "LEND1",
+      "name": "Example Bank plc",
+      "lei": "549300ABCDEFGHJKLMN1",
+      "role": "Lender",
+      "jurisdiction": "GB",
+      "commitment_amount": 500000.00,
+      "commitment_currency": "GBP"
+    }
+  ],
+  "facilities": [
+    {
+      "facility_id": "FAC1",
+      "type": "Revolver",
+      "currency": "GBP",
+      "limit": 500000.00,
+      "availability": {
+        "start_date": "2025-01-15",
+        "end_date": "2028-01-15",
+        "conditions_precedent": ["Signed FA"]
+      },
+      "tranches": [
+        {
+          "tranche_id": "TR1",
+          "limit": 500000.00,
+          "purpose": "Working capital",
+          "interest": {
+            "index": "SONIA",
+            "tenor": "1M",
+            "spread_bps": 250,
+            "floor_rate": 0.0,
+            "day_count": "ACT/365F",
+            "rate_reset": {
+              "frequency": "Monthly",
+              "business_day_convention": "ModifiedFollowing"
+            },
+            "compounding": "Simple"
+          },
+          "fees": [],
+          "amortization": {
+            "type": "Bullet",
+            "schedule": []
+          },
+          "covenants": [],
+          "collateral": []
+        }
+      ],
+      "drawdowns": [],
+      "repayments": [],
+      "prepayment": {
+        "voluntary": {
+          "notice_days": 3,
+          "break_costs_applicable": false,
+          "minimum_amount": 10000.00,
+          "multiple_amount": 1000.00
+        },
+        "mandatory": {
+          "events": [],
+          "threshold": null,
+          "application": null
+        }
+      }
+    }
+  ],
+  "validation_error_reason": null
+}
+```
+
+**MVP Scope Includes:**
+- Core identification: `loan_id`, `agreement_id`, `party_id`
+- Financial terms: `principal_amount`, `apr`, `term_months`, `funding_date`, `maturity_date`
+- Balance tracking: `outstanding_principal`, `accrued_interest`
+- Basic metadata: `purpose`, `governing_law`, `day_count_basis`, `currency`
+- Flat party list with role-based differentiation
+- Facility/tranche structure with interest configuration
+- Prepayment terms (simplified mandatory structure)
+- Workflow error tracking: `validation_error_reason`
+
+**Key Structural Differences from Extended Model:**
+- Single `party_id` reference at top level for primary borrower
+- Flat `parties` array (not hierarchical by role)
+- `mandatory` prepayment as single object (not array of triggers)
+- Interest configuration only at tranche level (not facility level)
+- Simplified nested structures (fees, covenants, collateral as empty arrays in basic loans)
+- No legal/compliance structures (events of default, undertakings, representations)
+- No document management or audit trail
+
+**Finite State Machine (FSM) Diagram:**
+
+```mermaid
 stateDiagram-v2
-    \[\*\] \--\> initial
-    initial \--\> draft: Validation Success
-    initial \--\> validation\_error: Validation Failed
-    validation\_error \--\> initial: FIX
-    draft \--\> approval\_pending: Submit for Approval
-    approval\_pending \--\> approved: Approve
-    approval\_pending \--\> draft: Reject
-    approved \--\> funded: Fund
-    funded \--\> active: Funding Date Reached
-    active \--\> settled: Settlement Quote Accepted & Paid
-    active \--\> closed: Maturity Date & Fully Paid
-    settled \--\> \[\*\]
-    closed \--\> \[\*\]
+    [*] --> initial
+    initial --> draft: Validation Success
+    initial --> validation_error: Validation Failed
+    validation_error --> initial: FIX
+    draft --> approval_pending: Submit for Approval
+    approval_pending --> approved: Approve
+    approval_pending --> draft: Reject
+    approved --> funded: Fund
+    funded --> active: Funding Date Reached
+    active --> settled: Settlement Quote Accepted & Paid
+    active --> closed: Maturity Date & Fully Paid
+    settled --> [*]
+    closed --> [*]
+```
 
 * **State Transition Table:**
 
@@ -657,129 +813,134 @@ This table provides the definitive logic for the Loan entity's lifecycle, servin
 
 #### **3.3.2. Party Entity**
 
-{  
-  "party\_id": "BORR1",  
-  "version": 1,  
-  "status": "ACTIVE",  
-  "entity\_type": "CORPORATE",  
-  "legal\_name": "Example Borrower Ltd",  
-  "lei": "5493001KJTIIGC8Y1R12",  
-  "jurisdiction": "GB",  
-  "incorporation\_date": "2010-05-21",  
-  "roles": \[  
-    "BORROWER"  
-  \],  
-  "address": {  
-    "registered": {  
-      "street\_address": "123 Business Park",  
-      "city": "London",  
-      "postal\_code": "EC2N 2AX",  
-      "country": "GB"  
-    },  
-    "mailing": {  
-      "street\_address": "123 Business Park",  
-      "city": "London",  
-      "postal\_code": "EC2N 2AX",  
-      "country": "GB"  
-    }  
-  },  
-  "tax\_details": {  
-    "tax\_residency": "GB",  
-    "tax\_id": "9876543210"  
-  },  
-  "audit": {  
-    "created\_at": "2024-09-15T10:00:00Z",  
-    "created\_by": "onboarding\_specialist",  
-    "updated\_at": "2024-09-15T10:00:00Z",  
-    "updated\_by": "onboarding\_specialist"  
-  }  
+```json
+{
+  "party_id": "BORR1",
+  "version": 1,
+  "status": "ACTIVE",
+  "entity_type": "CORPORATE",
+  "legal_name": "Example Borrower Ltd",
+  "lei": "5493001KJTIIGC8Y1R12",
+  "jurisdiction": "GB",
+  "incorporation_date": "2010-05-21",
+  "roles": [
+    "BORROWER"
+  ],
+  "address": {
+    "registered": {
+      "street_address": "123 Business Park",
+      "city": "London",
+      "postal_code": "EC2N 2AX",
+      "country": "GB"
+    },
+    "mailing": {
+      "street_address": "123 Business Park",
+      "city": "London",
+      "postal_code": "EC2N 2AX",
+      "country": "GB"
+    }
+  },
+  "tax_details": {
+    "tax_residency": "GB",
+    "tax_id": "9876543210"
+  },
+  "audit": {
+    "created_at": "2024-09-15T10:00:00Z",
+    "created_by": "onboarding_specialist",
+    "updated_at": "2024-09-15T10:00:00Z",
+    "updated_by": "onboarding_specialist"
+  }
 }
+```
 
 #### **3.3.3. Accrual**
 
 This entity records the result of the daily interest calculation for each active loan.
 
-   
-{  
-  "accrual\_id": "accr\_a7b3c2d9-1e4f-4a8b-8f3c-5d6e7f8g9h0i",  
-  "loan\_id": "loan\_f4c3d2e1-9b8a-4d7c-8e6f-1a2b3c4d5e6f",  
-  "value\_date": "2025-10-03",  
-  "status": "POSTED",  
-  "currency": "GBP",  
-  "calculation\_inputs": {  
-    "principal\_base": 950000.00,  
-    "effective\_rate": 0.05,  
-    "day\_count\_convention": "ACT/365",  
-    "day\_count\_fraction": 0.00273973  
-  },  
-  "accrued\_amount": 130.13698630,  
-  "sub\_ledger\_entries": \[  
-    {  
-      "entry\_id": "je\_deb\_a1b2c3d4",  
-      "account": "Interest Receivable",  
-      "type": "DEBIT",  
-      "amount": 130.13698630  
-    },  
-    {  
-      "entry\_id": "je\_cre\_e5f6g7h8",  
-      "account": "Interest Income",  
-      "type": "CREDIT",  
-      "amount": 130.13698630  
-    }  
-  \],  
-  "audit": {  
-    "created\_at": "2025-10-03T23:05:10Z",  
-    "created\_by": "System/EOD\_Processor",  
-    "posted\_at": "2025-10-03T23:05:12Z"  
-  }  
+```json
+{
+  "accrual_id": "accr_a7b3c2d9-1e4f-4a8b-8f3c-5d6e7f8g9h0i",
+  "loan_id": "loan_f4c3d2e1-9b8a-4d7c-8e6f-1a2b3c4d5e6f",
+  "value_date": "2025-10-03",
+  "status": "POSTED",
+  "currency": "GBP",
+  "calculation_inputs": {
+    "principal_base": 950000.00,
+    "effective_rate": 0.05,
+    "day_count_convention": "ACT/365",
+    "day_count_fraction": 0.00273973
+  },
+  "accrued_amount": 130.13698630,
+  "sub_ledger_entries": [
+    {
+      "entry_id": "je_deb_a1b2c3d4",
+      "account": "Interest Receivable",
+      "type": "DEBIT",
+      "amount": 130.13698630
+    },
+    {
+      "entry_id": "je_cre_e5f6g7h8",
+      "account": "Interest Income",
+      "type": "CREDIT",
+      "amount": 130.13698630
+    }
+  ],
+  "audit": {
+    "created_at": "2025-10-03T23:05:10Z",
+    "created_by": "System/EOD_Processor",
+    "posted_at": "2025-10-03T23:05:12Z"
+  }
 }
+```
 
 #### **3.3.4. Payment**
 
 This represents a single payment received from a borrower and details how the funds were allocated to interest, fees, and principal.
 
-{  
-  "payment\_id": "pmt\_8a7b2c1d-6e4f-4b9a-9e2c-3d4f5e6a7b8c",  
-  "loan\_id": "loan\_f4c3d2e1-9b8a-4d7c-8e6f-1a2b3c4d5e6f",  
-  "payer\_party\_id": "BORR1",  
-  "status": "POSTED",  
-  "payment\_amount": 50000.00,  
-  "currency": "GBP",  
-  "value\_date": "2025-10-03",  
-  "received\_date": "2025-10-02",  
-  "payment\_method": "BANK\_TRANSFER",  
-  "reference": "BACS-REF-XYZ-12345",  
-  "allocation": {  
-    "interest\_allocated": 12540.50,  
-    "fees\_allocated": 0.00,  
-    "principal\_allocated": 37459.50  
-  },  
-  "sub\_ledger\_entries": \[  
-    {  
-      "entry\_id": "je\_deb\_c1d2e3f4",  
-      "account": "Cash",  
-      "type": "DEBIT",  
-      "amount": 50000.00  
-    },  
-    {  
-      "entry\_id": "je\_cre\_g5h6i7j8",  
-      "account": "Interest Receivable",  
-      "type": "CREDIT",  
-      "amount": 12540.50  
-    },  
-    {  
-      "entry\_id": "je\_cre\_k9l0m1n2",  
-      "account": "Loan Principal",  
-      "type": "CREDIT",  
-      "amount": 37459.50  
-    }  
-  \],  
-  "audit": {  
-    "created\_at": "2025-10-02T14:30:00Z",  
-    "created\_by": "Peter, the Payment Processor",  
-    "posted\_at": "2025-10-02T14:32:15Z"  
-  }  
+```json
+{
+  "payment_id": "pmt_8a7b2c1d-6e4f-4b9a-9e2c-3d4f5e6a7b8c",
+  "loan_id": "loan_f4c3d2e1-9b8a-4d7c-8e6f-1a2b3c4d5e6f",
+  "payer_party_id": "BORR1",
+  "status": "POSTED",
+  "payment_amount": 50000.00,
+  "currency": "GBP",
+  "value_date": "2025-10-03",
+  "received_date": "2025-10-02",
+  "payment_method": "BANK_TRANSFER",
+  "reference": "BACS-REF-XYZ-12345",
+  "allocation": {
+    "interest_allocated": 12540.50,
+    "fees_allocated": 0.00,
+    "principal_allocated": 37459.50
+  },
+  "sub_ledger_entries": [
+    {
+      "entry_id": "je_deb_c1d2e3f4",
+      "account": "Cash",
+      "type": "DEBIT",
+      "amount": 50000.00
+    },
+    {
+      "entry_id": "je_cre_g5h6i7j8",
+      "account": "Interest Receivable",
+      "type": "CREDIT",
+      "amount": 12540.50
+    },
+    {
+      "entry_id": "je_cre_k9l0m1n2",
+      "account": "Loan Principal",
+      "type": "CREDIT",
+      "amount": 37459.50
+    }
+  ],
+  "audit": {
+    "created_at": "2025-10-02T14:30:00Z",
+    "created_by": "Peter, the Payment Processor",
+    "posted_at": "2025-10-02T14:32:15Z"
+  }
 }
+```
 
 #### **3.3.5. GLBatch**
 
@@ -787,70 +948,72 @@ A batch of summarized accounting entries prepared at the end of a month for post
 
 **Note**: GL lines are stored as an embedded array within the GLBatch entity, not as separate entities with their own lifecycle. Each line represents a single debit or credit entry in the batch.
 
-{  
-  "batch\_id": "gl-batch-b3d4a1c2-9e8f-4a7b-8c6d-5e4f3a2b1c0d",  
-  "period": "2025-09",  
-  "status": "PREPARED",  
-  "export\_format": "CSV",  
-  "control\_totals": {  
-    "total\_debits": 4130130.55,  
-    "total\_credits": 4130130.55,  
-    "line\_item\_count": 4  
-  },  
-  "gl\_lines": \[  
-    {  
-      "gl\_line\_id": "gll-1a2b-3c4d",  
-      "gl\_account": "1100-Interest-Receivable",  
-      "description": "Total interest accrued for period 2025-09",  
-      "type": "DEBIT",  
-      "amount": 130130.55  
-    },  
-    {  
-      "gl\_line\_id": "gll-5e6f-7g8h",  
-      "gl\_account": "4000-Interest-Income",  
-      "description": "Total interest income recognized for period 2025-09",  
-      "type": "CREDIT",  
-      "amount": 130130.55  
-    },  
-    {  
-      "gl\_line\_id": "gll-9i0j-1k2l",  
-      "gl\_account": "1010-Cash",  
-      "description": "Total cash received from loan payments in period 2025-09",  
-      "type": "DEBIT",  
-      "amount": 4000000.00  
-    },  
-    {  
-      "gl\_line\_id": "gll-3m4n-5o6p",  
-      "gl\_account": "1200-Loan-Principal",  
-      "description": "Total loan principal reduction from payments in period 2025-09",  
-      "type": "CREDIT",  
-      "amount": 4000000.00  
-    }  
-  \],  
-  "audit": {  
-    "prepared\_at": "2025-10-01T10:05:00Z",  
-    "prepared\_by": "Fiona, the Finance Manager",  
-    "approvals": \[\],  
-    "exported\_at": null,  
-    "posted\_at": null  
-  }  
+```json
+{
+  "batch_id": "gl-batch-b3d4a1c2-9e8f-4a7b-8c6d-5e4f3a2b1c0d",
+  "period": "2025-09",
+  "status": "PREPARED",
+  "export_format": "CSV",
+  "control_totals": {
+    "total_debits": 4130130.55,
+    "total_credits": 4130130.55,
+    "line_item_count": 4
+  },
+  "gl_lines": [
+    {
+      "gl_line_id": "gll-1a2b-3c4d",
+      "gl_account": "1100-Interest-Receivable",
+      "description": "Total interest accrued for period 2025-09",
+      "type": "DEBIT",
+      "amount": 130130.55
+    },
+    {
+      "gl_line_id": "gll-5e6f-7g8h",
+      "gl_account": "4000-Interest-Income",
+      "description": "Total interest income recognized for period 2025-09",
+      "type": "CREDIT",
+      "amount": 130130.55
+    },
+    {
+      "gl_line_id": "gll-9i0j-1k2l",
+      "gl_account": "1010-Cash",
+      "description": "Total cash received from loan payments in period 2025-09",
+      "type": "DEBIT",
+      "amount": 4000000.00
+    },
+    {
+      "gl_line_id": "gll-3m4n-5o6p",
+      "gl_account": "1200-Loan-Principal",
+      "description": "Total loan principal reduction from payments in period 2025-09",
+      "type": "CREDIT",
+      "amount": 4000000.00
+    }
+  ],
+  "audit": {
+    "prepared_at": "2025-10-01T10:05:00Z",
+    "prepared_by": "Fiona, the Finance Manager",
+    "approvals": [],
+    "exported_at": null,
+    "posted_at": null
+  }
 }
+```
 
-* **Finite State Machine (FSM) Diagram:**
+**Finite State Machine (FSM) Diagram:**
 
-Code snippet
-
+```mermaid
 stateDiagram-v2
-    \[\*\] \--\> initial
-    initial \--\> open: Validation Success
-    initial \--\> validation\_error: Validation Failed
-    validation\_error \--\> initial: FIX
-    open \--\> prepared: Prepare Batch
-    prepared \--\> maker\_approved: Maker Approval
-    maker\_approved \--\> exported: Checker Approval & Export
-    exported \--\> posted: GL Acknowledgment
-    posted \--\> archived: Archive
-    archived \--\> \[\*\]
+    [*] --> initial
+    initial --> open: Validation Success
+    initial --> validation_error: Validation Failed
+    validation_error --> initial: FIX
+    open --> prepared: Prepare Batch
+    prepared --> maker_approved: Maker Approval
+    maker_approved --> exported: Checker Approval & Export
+    exported --> posted: GL Acknowledgment
+    posted --> archived: Archive
+    archived --> [*]
+```
 
 * **State Transition Table:**
 
