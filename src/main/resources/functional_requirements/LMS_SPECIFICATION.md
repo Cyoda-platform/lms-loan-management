@@ -323,7 +323,7 @@ The Entity Relationship Diagram (ERD) below provides a visual, canonical represe
 
 ### **3.1.1 Entities**
 
-Loan: This is the central entity, or "aggregate root," that represents a single commercial loan. It holds key information like the principal amount, term, APR, and current status   
+Loan: This is the central entity, or "aggregate root," that represents a single commercial loan. It holds key information like the principal amount, term, APR, and current status
 Party: This entity represents the borrower legalEntity of the loan. The Loan entity links to it via a party\_id3.
 
 Accrual: This entity records the result of the daily interest calculation for each active loan.
@@ -332,39 +332,70 @@ Payment: This represents a single payment received from a borrower and details h
 
 SettlementQuote: This entity stores the details of a quote for an early loan settlement, including the total amount due and the quote's expiration date.
 
-GLBatch: A batch of summarized accounting entries prepared at the end of a month for posting to the General Ledger. It includes header information and totals.
-
-GLLine: This is a child entity of the GLBatch, representing a single debit or credit line within the accounting batch.
+GLBatch: A batch of summarized accounting entries prepared at the end of a month for posting to the General Ledger. It includes header information, control totals, and an embedded list of GL lines as a sub-structure within the entity.
 
 Code snippet
 
-erDiagram  
-    Party |
+erDiagram
+    Party ||--o{ Loan : "has"
+    Loan ||--o{ Payment : "receives"
+    Loan ||--o{ Accrual : "generates"
+    Loan ||--o{ SettlementQuote : "can have"
+    GLBatch }o--|| Period : "summarizes accruals and payments for"
 
-|--o{ Loan : "has"  
-    Loan |
 
-|--o{ Payment : "receives"  
-    Loan |
 
-|--o{ Accrual : "generates"  
-    Loan |
+### **3.2. Standard Validation Error Pattern**
 
-|--o{ SettlementQuote : "can have"  
-    GLBatch }o--|
+All entities in the LMS implement a standard validation error pattern at the start of their lifecycle. This pattern ensures that invalid entities are caught early, validation errors are clearly communicated, and users have a clear path to correct and retry.
 
-| Accrual : "summarizes"  
-    GLBatch }o--|
+#### **Pattern Structure**
 
-| Payment : "summarizes"
+Every entity workflow begins with an `initial` state that has two possible transitions:
 
- 
+1. **Success Path**: If the entity passes validation, it transitions to its first operational state (e.g., DRAFT for Loan, ACTIVE for Party, CAPTURED for Payment)
+2. **Error Path**: If the entity fails validation, it transitions to a `validation_error` state where the error details are attached to the entity
 
-### **3.2. Entity Specifications & State Machine Models**
+#### **Components**
+
+* **{Entity}ValidationCriterion**: Returns `true` if the entity data is valid
+* **{Entity}ValidationFailedCriterion**: Returns `true` if the entity data is invalid (inverse of validation criterion)
+* **Attach{Entity}ValidationErrorProcessor**: Populates the `validationErrorReason` field with detailed error information
+* **ClearValidationErrorReasonProcessor**: Clears the error field (shared across all entities)
+
+#### **Recovery Mechanism**
+
+From the `validation_error` state, users can manually trigger a `FIX` transition that:
+
+1. Clears the `validationErrorReason` field
+2. Returns the entity to the `initial` state
+3. Allows the user to correct the entity data and retry the validation
+
+#### **Benefits**
+
+* **Audit Trail**: Every validation failure is recorded with detailed error information
+* **User-Friendly**: Clear error messages guide users to fix issues
+* **Data Quality**: Prevents invalid entities from entering the main lifecycle
+* **Consistency**: Same pattern across all entities reduces cognitive load
+
+#### **Example (Loan Entity)**
+
+Code snippet
+
+stateDiagram-v2
+    \[\*\] \--\> initial
+    initial \--\> draft: NewLoanValidationCriterion
+    initial \--\> validation\_error: NewLoanValidationFailedCriterion
+    validation\_error \--\> initial: FIX (manual)
+    draft \--\> approval\_pending: submit\_for\_approval
+
+This pattern must be preserved in all entity workflows.
+
+### **3.3. Entity Specifications & State Machine Models**
 
 Each core business object is modeled as an Entity with a structured set of attributes and, for those with a dynamic lifecycle, a formal Finite State Machine (FSM). This entity-centric approach is central to the Cyoda platform's architecture.1
 
-#### **3.2.1. Loan Entity**
+#### **3.3.1. Loan Entity**
 
 Represents a funded commercial loan under servicing. It is the aggregate root for most financial activities.
 
@@ -592,17 +623,20 @@ Represents a funded commercial loan under servicing. It is the aggregate root fo
 
 Code snippet
 
-stateDiagram-v2  
-    \[\*\] \--\> DRAFT  
-    DRAFT \--\> APPROVAL\_PENDING: Create  
-    APPROVAL\_PENDING \--\> APPROVED: Approve  
-    APPROVAL\_PENDING \--\> DRAFT: Reject  
-    APPROVED \--\> FUNDED: Fund  
-    FUNDED \--\> ACTIVE: Go Active (Auto)  
-    ACTIVE \--\> SETTLED: Apply Settlement  
-    ACTIVE \--\> CLOSED: Record Maturity  
-    SETTLED \--\> \[\*\]  
-    CLOSED \--\> \[\*\]
+stateDiagram-v2
+    \[\*\] \--\> initial
+    initial \--\> draft: Validation Success
+    initial \--\> validation\_error: Validation Failed
+    validation\_error \--\> initial: FIX
+    draft \--\> approval\_pending: Submit for Approval
+    approval\_pending \--\> approved: Approve
+    approval\_pending \--\> draft: Reject
+    approved \--\> funded: Fund
+    funded \--\> active: Funding Date Reached
+    active \--\> settled: Settlement Quote Accepted & Paid
+    active \--\> closed: Maturity Date & Fully Paid
+    settled \--\> \[\*\]
+    closed \--\> \[\*\]
 
 * **State Transition Table:**
 
@@ -610,16 +644,18 @@ This table provides the definitive logic for the Loan entity's lifecycle, servin
 
 | Current State | Triggering Event/Condition | Action/Processor | Next State | Notes |
 | :---- | :---- | :---- | :---- | :---- |
-| (new) | Create (Manual) | ValidateNewLoan (SYNC) | DRAFT | Initial creation of the loan record. |
-| DRAFT | SubmitForApproval (Manual) | \- | APPROVAL\_PENDING | Submits the draft loan for review. |
-| APPROVAL\_PENDING | Approve (Manual, Maker/Checker) | StampedApproval (SYNC) | APPROVED | Records actor/role metadata for audit. |
-| APPROVAL\_PENDING | Reject (Manual) | \- | DRAFT | Returns the loan for correction. |
-| APPROVED | Fund (Manual) | SetInitialBalances (SYNC), GenerateReferenceSchedule (ASYNC) | FUNDED | Initializes balances and schedules. |
-| FUNDED | funded\_at \<= now() (Automated) | \- | ACTIVE | Loan becomes active on its funding date. |
-| ACTIVE | maturityDate reached AND outstandingPrincipal \== 0 (Automated) | CloseLoan (SYNC) | CLOSED | Loan is closed at term end if fully paid. |
-| ACTIVE | Accepted SettlementQuote exists and is paid (Automated) | ApplySettlement (SYNC) | SETTLED | Loan is closed due to early settlement. |
+| initial | Create (Auto) | NewLoanValidationCriterion | draft | Validation succeeds, loan enters draft state. |
+| initial | Create (Auto) | NewLoanValidationFailedCriterion, AttachNewLoanValidationErrorProcessor | validation\_error | Validation fails, error details attached. |
+| validation\_error | FIX (Manual) | ClearValidationErrorReasonProcessor | initial | User corrects data and retries. |
+| draft | SubmitForApproval (Manual) | PrepareForApproval (SYNC) | approval\_pending | Submits the draft loan for review. |
+| approval\_pending | Approve (Manual, Maker/Checker) | StampedApproval (SYNC) | approved | Records actor/role metadata for audit. |
+| approval\_pending | Reject (Manual) | \- | draft | Returns the loan for correction. |
+| approved | Fund (Manual) | SetInitialBalances (SYNC), GenerateReferenceSchedule (ASYNC) | funded | Initializes balances and schedules. |
+| funded | fundedDate \<= now() (Automated) | \- | active | Loan becomes active on its funding date. |
+| active | maturityDate reached AND outstandingPrincipal \== 0 (Automated) | CloseLoan (SYNC) | closed | Loan is closed at term end if fully paid. |
+| active | Accepted SettlementQuote exists and is paid (Automated) | ApplySettlement (SYNC) | settled | Loan is closed due to early settlement. |
 
-#### **3.2.2. Party Entity**
+#### **3.3.2. Party Entity**
 
 {  
   "party\_id": "BORR1",  
@@ -659,9 +695,7 @@ This table provides the definitive logic for the Loan entity's lifecycle, servin
   }  
 }
 
-#### 
-
-#### **3.2.3. Accrual**
+#### **3.3.3. Accrual**
 
 This entity records the result of the daily interest calculation for each active loan.
 
@@ -700,7 +734,7 @@ This entity records the result of the daily interest calculation for each active
   }  
 }
 
-**3.2.4.** Payment: 
+#### **3.3.4. Payment**
 
 This represents a single payment received from a borrower and details how the funds were allocated to interest, fees, and principal.
 
@@ -747,8 +781,11 @@ This represents a single payment received from a borrower and details how the fu
   }  
 }
 
-**3.2.4.**GLBatch: A batch of summarized accounting entries prepared at the end of a month for posting to the General Ledger. It includes header information and totals.   
- GLLine:  This is a child entity of the GLBatch, representing a single debit or credit line within the accounting batch.
+#### **3.3.5. GLBatch**
+
+A batch of summarized accounting entries prepared at the end of a month for posting to the General Ledger. It includes header information, control totals, and an embedded list of GL lines as a sub-structure.
+
+**Note**: GL lines are stored as an embedded array within the GLBatch entity, not as separate entities with their own lifecycle. Each line represents a single debit or credit entry in the batch.
 
 {  
   "batch\_id": "gl-batch-b3d4a1c2-9e8f-4a7b-8c6d-5e4f3a2b1c0d",  
@@ -799,19 +836,36 @@ This represents a single payment received from a borrower and details how the fu
   }  
 }
 
-* **Attributes:Finite State Machine (FSM) Diagram:**
+* **Finite State Machine (FSM) Diagram:**
 
 Code snippet
 
-stateDiagram-v2  
-    \[\*\] \--\> OPEN  
-    OPEN \--\> PREPARED: Prepare  
-    PREPARED \--\> EXPORTED: Export (Maker/Checker)  
-    EXPORTED \--\> POSTED: Acknowledgment Received  
-    POSTED \--\> ARCHIVED: Archive  
-    ARCHIVED \--\> \[\*\]
+stateDiagram-v2
+    \[\*\] \--\> initial
+    initial \--\> open: Validation Success
+    initial \--\> validation\_error: Validation Failed
+    validation\_error \--\> initial: FIX
+    open \--\> prepared: Prepare Batch
+    prepared \--\> maker\_approved: Maker Approval
+    maker\_approved \--\> exported: Checker Approval & Export
+    exported \--\> posted: GL Acknowledgment
+    posted \--\> archived: Archive
+    archived \--\> \[\*\]
 
-### **3.3. Processors and Event Triggers**
+* **State Transition Table:**
+
+| Current State | Triggering Event/Condition | Action/Processor | Next State | Notes |
+| :---- | :---- | :---- | :---- | :---- |
+| initial | Create (Auto) | GLBatchValidationCriterion | open | Validation succeeds, batch can be created. |
+| initial | Create (Auto) | GLBatchValidationFailedCriterion, AttachGLBatchValidationErrorProcessor | validation\_error | Validation fails (e.g., period already processed). |
+| validation\_error | FIX (Manual) | ClearValidationErrorReasonProcessor | initial | User corrects data and retries. |
+| open | Prepare (Manual) | SummarizePeriod (ASYNC\_NEW\_TX), CalculateControlTotals (SYNC) | prepared | Aggregates sub-ledger entries for the period. |
+| prepared | Approve Export \- Maker (Manual) | RecordMakerApproval (SYNC) | maker\_approved | First approver (maker) approves the batch. |
+| maker\_approved | Approve Export \- Checker (Manual) | MakerCheckerDifferentUsers (criterion), RecordCheckerApproval (SYNC), GenerateExportFile (SYNC), SendToGLSystem (ASYNC\_NEW\_TX) | exported | Second approver (checker) approves and exports. |
+| exported | Acknowledgment Received (Auto) | GLAcknowledgmentReceived (criterion) | posted | GL system confirms receipt of batch. |
+| posted | Archive (Manual) | ArchiveBatch (SYNC) | archived | Batch is archived for retention. |
+
+### **3.4. Processors and Event Triggers**
 
 Processors contain the business logic executed during state transitions. Defining their triggers, execution modes, and side effects explicitly provides a precise contract for code generation, ensuring the system is not only functionally correct but also resilient and performant by clarifying transactional boundaries.1
 
@@ -1087,7 +1141,7 @@ These stories provide users with the ability to view and verify the system's aut
 * **So that** I can verify the accuracy of the financial summaries and ensure the batch is balanced before it is sent to the General Ledger.  
 * **Acceptance Criteria:**  
   * **Given** a GLBatch is in the PREPARED state 11,  
-  * **when** I open its detailed view, **then** I shall see a list of all summary GLLine items within the batch12.  
+  * **when** I open its detailed view, **then** I shall see the full list of aggregated GL lines with their respective debit/credit amounts12.  
   * **Given** I am viewing the GL Batch details, **then** I can see the control totals for total debits and credits and confirm they are equal13131313.  
   * **Given** I have verified the batch details are correct, **when** I click "Approve", **then** my approval is recorded, and the system is ready for the second "checker" approval before enabling the export action.
 
