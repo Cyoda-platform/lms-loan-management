@@ -69,7 +69,7 @@ graph TD
     U2[Payment Processor] -- Uses --> B
     U3[Finance Manager] -- Uses --> B
 
-    C -- Exports GL Batch (API/File) --> S1
+    C -- Exports GL Batch API/File --> S1
 
     style U1 fill:#e6f2ff,stroke:#333,stroke-width:2px
     style U2 fill:#e6f2ff,stroke:#333,stroke-width:2px
