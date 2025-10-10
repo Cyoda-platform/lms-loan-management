@@ -1,20 +1,20 @@
 {
   "version": "1.0",
-  "name": "Loan",
-  "desc": "Loan lifecycle workflow from creation through settlement - CORRECTED per LMS_SPECIFICATION.md",
+  "name": "GLBatch",
+  "desc": "Month-end GL batch workflow with maker/checker controls and validation pattern",
   "initialState": "initial",
   "active": true,
   "states": {
     "initial": {
       "transitions": [
         {
-          "name": "create_loan",
-          "next": "draft",
+          "name": "create_batch",
+          "next": "open",
           "manual": false,
           "criterion": {
             "type": "function",
             "function": {
-              "name": "NewLoanValidationCriterion",
+              "name": "GLBatchValidationCriterion",
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
@@ -31,7 +31,7 @@
           "criterion": {
             "type": "function",
             "function": {
-              "name": "NewLoanValidationFailedCriterion",
+              "name": "GLBatchValidationFailedCriterion",
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
@@ -42,7 +42,7 @@
           },
           "processors": [
             {
-              "name": "AttachNewLoanValidationErrorProcessor",
+              "name": "AttachGLBatchValidationErrorProcessor",
               "executionMode": "SYNC",
               "config": {
                 "attachEntity": true,
@@ -76,15 +76,58 @@
         }
       ]
     },
-    "draft": {
+    "open": {
       "transitions": [
         {
-          "name": "submit_for_approval",
-          "next": "approval_pending",
+          "name": "prepare_batch",
+          "next": "prepared",
           "manual": true,
           "processors": [
             {
-              "name": "PrepareForApproval",
+              "name": "SummarizePeriod",
+              "executionMode": "ASYNC_NEW_TX",
+              "config": {
+                "attachEntity": true,
+                "calculationNodesTags": "cyoda_application",
+                "responseTimeoutMs": 60000,
+                "retryPolicy": "FIXED"
+              }
+            },
+            {
+              "name": "CalculateControlTotals",
+              "executionMode": "SYNC",
+              "config": {
+                "attachEntity": true,
+                "calculationNodesTags": "cyoda_application",
+                "responseTimeoutMs": 10000,
+                "retryPolicy": "FIXED"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "prepared": {
+      "transitions": [
+        {
+          "name": "approve_export_maker",
+          "next": "maker_approved",
+          "manual": true,
+          "criterion": {
+            "type": "function",
+            "function": {
+              "name": "ControlTotalsBalanced",
+              "config": {
+                "attachEntity": true,
+                "calculationNodesTags": "cyoda_application",
+                "responseTimeoutMs": 10000,
+                "retryPolicy": "FIXED"
+              }
+            }
+          },
+          "processors": [
+            {
+              "name": "RecordMakerApproval",
               "executionMode": "SYNC",
               "config": {
                 "attachEntity": true,
@@ -96,22 +139,22 @@
           ]
         },
         {
-          "name": "update_loan",
-          "next": "initial",
+          "name": "reject_batch",
+          "next": "open",
           "manual": true
         }
       ]
     },
-    "approval_pending": {
+    "maker_approved": {
       "transitions": [
         {
-          "name": "approve_loan",
-          "next": "approved",
+          "name": "approve_export_checker",
+          "next": "exported",
           "manual": true,
-          "processors": [
-            {
-              "name": "StampedApproval",
-              "executionMode": "SYNC",
+          "criterion": {
+            "type": "function",
+            "function": {
+              "name": "MakerCheckerDifferentUsers",
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
@@ -119,24 +162,10 @@
                 "retryPolicy": "FIXED"
               }
             }
-          ]
-        },
-        {
-          "name": "reject_loan",
-          "next": "draft",
-          "manual": true
-        }
-      ]
-    },
-    "approved": {
-      "transitions": [
-        {
-          "name": "fund_loan",
-          "next": "funded",
-          "manual": true,
+          },
           "processors": [
             {
-              "name": "SetInitialBalances",
+              "name": "RecordCheckerApproval",
               "executionMode": "SYNC",
               "config": {
                 "attachEntity": true,
@@ -146,29 +175,44 @@
               }
             },
             {
-              "name": "GenerateReferenceSchedule",
-              "executionMode": "ASYNC_NEW_TX",
+              "name": "GenerateExportFile",
+              "executionMode": "SYNC",
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
                 "responseTimeoutMs": 10000,
                 "retryPolicy": "FIXED"
               }
+            },
+            {
+              "name": "SendToGLSystem",
+              "executionMode": "ASYNC_NEW_TX",
+              "config": {
+                "attachEntity": true,
+                "calculationNodesTags": "cyoda_application",
+                "responseTimeoutMs": 30000,
+                "retryPolicy": "EXPONENTIAL_BACKOFF"
+              }
             }
           ]
+        },
+        {
+          "name": "reject_batch",
+          "next": "open",
+          "manual": true
         }
       ]
     },
-    "funded": {
+    "exported": {
       "transitions": [
         {
-          "name": "activate_loan",
-          "next": "active",
+          "name": "receive_acknowledgment",
+          "next": "posted",
           "manual": false,
           "criterion": {
             "type": "function",
             "function": {
-              "name": "LoanFundingDateReachedCriterion",
+              "name": "GLAcknowledgmentReceived",
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
@@ -180,56 +224,15 @@
         }
       ]
     },
-    "active": {
+    "posted": {
       "transitions": [
         {
-          "name": "close_loan",
-          "next": "closed",
-          "manual": false,
-          "criterion": {
-            "type": "function",
-            "function": {
-              "name": "LoanMaturityAndFullyPaidCriterion",
-              "config": {
-                "attachEntity": true,
-                "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
-                "retryPolicy": "FIXED"
-              }
-            }
-          },
+          "name": "archive_batch",
+          "next": "archived",
+          "manual": true,
           "processors": [
             {
-              "name": "CloseLoan",
-              "executionMode": "SYNC",
-              "config": {
-                "attachEntity": true,
-                "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
-                "retryPolicy": "FIXED"
-              }
-            }
-          ]
-        },
-        {
-          "name": "settle_loan",
-          "next": "settled",
-          "manual": false,
-          "criterion": {
-            "type": "function",
-            "function": {
-              "name": "SettlementQuoteAcceptedAndPaidCriterion",
-              "config": {
-                "attachEntity": true,
-                "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
-                "retryPolicy": "FIXED"
-              }
-            }
-          },
-          "processors": [
-            {
-              "name": "ApplySettlement",
+              "name": "ArchiveBatch",
               "executionMode": "SYNC",
               "config": {
                 "attachEntity": true,
@@ -242,10 +245,7 @@
         }
       ]
     },
-    "closed": {
-      "transitions": []
-    },
-    "settled": {
+    "archived": {
       "transitions": []
     }
   }
