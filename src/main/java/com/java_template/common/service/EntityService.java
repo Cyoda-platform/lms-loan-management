@@ -4,6 +4,7 @@ import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.workflow.CyodaEntity;
 import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
+import org.cyoda.cloud.api.event.common.EntityChangeMeta;
 import org.cyoda.cloud.api.event.common.ModelSpec;
 import org.cyoda.cloud.api.event.common.condition.GroupCondition;
 import org.springframework.data.domain.Page;
@@ -330,7 +331,7 @@ public interface EntityService {
      * @param entityId Technical UUID of the entity
      * @return List of EntityChangeMeta with change history information
      */
-    List<org.cyoda.cloud.api.event.common.EntityChangeMeta> getEntityChangesMetadata(@NotNull UUID entityId);
+    List<EntityChangeMeta> getEntityChangesMetadata(@NotNull UUID entityId);
 
     /**
      * Get entity change history metadata at a specific point in time
@@ -340,7 +341,7 @@ public interface EntityService {
      * @param pointInTime Point in time to retrieve changes up to (null for all changes)
      * @return List of EntityChangeMeta with change history information
      */
-    List<org.cyoda.cloud.api.event.common.EntityChangeMeta> getEntityChangesMetadata(
+    List<EntityChangeMeta> getEntityChangesMetadata(
             @NotNull UUID entityId,
             @Nullable java.util.Date pointInTime
     );

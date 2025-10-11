@@ -19,6 +19,8 @@ import org.cyoda.cloud.api.event.entity.EntityDeleteAllResponse;
 import org.cyoda.cloud.api.event.entity.EntityDeleteResponse;
 import org.cyoda.cloud.api.event.entity.EntityTransactionInfo;
 import org.cyoda.cloud.api.event.entity.EntityTransactionResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -35,6 +37,8 @@ public class EntityServiceImpl implements EntityService {
 
     private static final int DEFAULT_PAGE_SIZE = 100;
     private static final int FIRST_PAGE = 1;
+
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private final CrudRepository repository;
     private final ObjectMapper objectMapper;
@@ -460,12 +464,37 @@ public class EntityServiceImpl implements EntityService {
         EntityChangeMeta changeMeta = changes.stream()
                 .filter(meta -> transactionId.equals(meta.getTransactionId()))
                 .findFirst()
-                .orElseThrow(() -> new RuntimeException("Transaction metadata not found for transaction: " + transactionId));
+                .orElseGet(() -> {
+                    logger.warn("Transaction metadata not found for transaction: {}. " +
+                            "The entity is unchanged. Falling back to last change metadata.", transactionId);
+
+                    // Sanity check: verify that the last element has the maximum transactionId
+                    return getLatestChange(changes);
+                });
 
         // Reload entity at the exact point in time when it was updated
         @SuppressWarnings("unchecked")
         Class<T> entityClass = (Class<T>) entity.getClass();
         return getById(entityId, modelSpec, entityClass, changeMeta.getTimeOfChange());
+    }
+
+    @NotNull
+    private EntityChangeMeta getLatestChange(List<EntityChangeMeta> changes) {
+        EntityChangeMeta lastChange = changes.getFirst();
+        UUID lastTransactionId = lastChange.getTransactionId();
+
+        if (lastTransactionId != null) {
+            for (int i = 0; i < changes.size() - 1; i++) {
+                UUID currentId = changes.get(i).getTransactionId();
+                if (currentId != null && currentId.compareTo(lastTransactionId) > 0) {
+                    logger.error("Sanity check failed: Last change transactionId {} is not the maximum. Found {} at index {}",
+                            lastTransactionId, currentId, i);
+                    throw new IllegalStateException("Changes list is not properly sorted by transactionId");
+                }
+            }
+        }
+
+        return lastChange;
     }
 
     public <T extends CyodaEntity> List<EntityWithMetadata<T>> updateAll(@NotNull final Collection<T> entities, @Nullable final String transition) {
@@ -498,7 +527,13 @@ public class EntityServiceImpl implements EntityService {
                                 EntityChangeMeta changeMeta = changes.stream()
                                         .filter(meta -> transactionId.equals(meta.getTransactionId()))
                                         .findFirst()
-                                        .orElseThrow(() -> new RuntimeException("Transaction metadata not found for transaction: " + transactionId));
+                                        .orElseGet(() -> {
+                                            logger.warn("Transaction metadata not found for transaction: {}. " +
+                                                    "The entity is unchanged. Falling back to last change metadata.", transactionId);
+
+                                            // Sanity check: verify that the last element has the maximum transactionId
+                                            return getLatestChange(changes);
+                                        });
 
                                 // Reload entity at the exact point in time when it was updated
                                 return getById(entityId, modelSpec, entityClass, changeMeta.getTimeOfChange());
