@@ -18,7 +18,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -35,7 +35,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -47,7 +47,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -68,7 +68,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -89,7 +89,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -115,7 +115,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -141,7 +141,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             },
@@ -151,7 +151,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -172,7 +172,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -193,7 +193,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -205,7 +205,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -222,7 +222,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -234,7 +234,7 @@
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 10000,
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
