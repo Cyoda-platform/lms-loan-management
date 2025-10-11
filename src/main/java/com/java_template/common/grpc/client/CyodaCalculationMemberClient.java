@@ -27,27 +27,36 @@ class CyodaCalculationMemberClient implements EventHandler {
     private final Logger log = LoggerFactory.getLogger(this.getClass());
 
     private final EventSender eventSender;
-    private final CalculationExecutionStrategy calculationExecutionStrategy;
+    private final EventExecutionRouter eventExecutionRouter;
     private final CloudEventBuilder eventBuilder;
     private final List<EventHandlingStrategy<? extends BaseEvent>> eventHandlingStrategies;
 
     CyodaCalculationMemberClient(
             @Lazy final EventSender eventSender,
-            final CalculationExecutionStrategy calculationExecutionStrategy,
+            final EventExecutionRouter eventExecutionRouter,
             final CloudEventBuilder eventBuilder,
             final List<EventHandlingStrategy<? extends BaseEvent>> eventHandlingStrategies
     ) {
         this.eventSender = eventSender;
-        this.calculationExecutionStrategy = calculationExecutionStrategy;
+        this.eventExecutionRouter = eventExecutionRouter;
         this.eventBuilder = eventBuilder;
         this.eventHandlingStrategies = eventHandlingStrategies;
     }
 
     @Override
     public void handleEvent(final CloudEvent cloudEvent) {
-        calculationExecutionStrategy.run(() -> {
+        // Determine event type BEFORE submitting to thread pool for proper routing
+        final CloudEventType cloudEventType;
+        try {
+            cloudEventType = CloudEventType.fromValue(cloudEvent.getType());
+        } catch (Exception e) {
+            log.error("Failed to parse CloudEventType from event: {}", cloudEvent, e);
+            return;
+        }
+
+        // Route to appropriate thread pool based on event type
+        eventExecutionRouter.routeAndExecute(cloudEventType, () -> {
             try {
-                final var cloudEventType = CloudEventType.fromValue(cloudEvent.getType());
                 log.debug(
                         "[IN] Received event {}: \n{}",
                         cloudEventType,
