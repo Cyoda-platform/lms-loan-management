@@ -53,6 +53,18 @@ public class PartyController {
     }
 
     /**
+     * Create multiple parties in batch
+     * POST /ui/parties/batch?transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<Party>>> createParties(
+            @RequestBody List<Party> parties,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.createAll(parties, transactionWindow, transactionTimeoutMs);
+    }
+
+    /**
      * Get party by technical UUID
      * GET /ui/parties/{id}?pointInTime=2025-10-03T10:15:30Z
      */
@@ -95,6 +107,19 @@ public class PartyController {
             @RequestBody Party party,
             @RequestParam(required = false) String transition) {
         return crudOps.update(id, party, transition);
+    }
+
+    /**
+     * Update multiple parties in batch
+     * PUT /ui/parties/batch?transition=TRANSITION_NAME&transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PutMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<Party>>> updateParties(
+            @RequestBody List<Party> parties,
+            @RequestParam(required = false) String transition,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.updateAll(parties, transition, transactionWindow, transactionTimeoutMs);
     }
 
     /**

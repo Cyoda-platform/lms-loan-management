@@ -60,6 +60,18 @@ public class LoanController {
     }
 
     /**
+     * Create multiple loans in batch
+     * POST /ui/loans/batch?transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<Loan>>> createLoans(
+            @Valid @RequestBody List<Loan> loans,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.createAll(loans, transactionWindow, transactionTimeoutMs);
+    }
+
+    /**
      * Get loan by technical UUID
      * GET /ui/loans/{id}?pointInTime=2025-10-03T10:15:30Z
      */
@@ -102,6 +114,19 @@ public class LoanController {
             @Valid @RequestBody Loan loan,
             @RequestParam(required = false) String transition) {
         return crudOps.update(id, loan, transition);
+    }
+
+    /**
+     * Update multiple loans in batch
+     * PUT /ui/loans/batch?transition=TRANSITION_NAME&transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PutMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<Loan>>> updateLoans(
+            @Valid @RequestBody List<Loan> loans,
+            @RequestParam(required = false) String transition,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.updateAll(loans, transition, transactionWindow, transactionTimeoutMs);
     }
 
     /**

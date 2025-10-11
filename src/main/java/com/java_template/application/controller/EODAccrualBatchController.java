@@ -55,6 +55,18 @@ public class EODAccrualBatchController {
     }
 
     /**
+     * Create multiple EOD accrual batches
+     * POST /ui/eod-batches/batch?transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<EODAccrualBatch>>> createBatches(
+            @RequestBody List<EODAccrualBatch> batches,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.createAll(batches, transactionWindow, transactionTimeoutMs);
+    }
+
+    /**
      * Get batch by technical UUID
      * GET /ui/eod-batches/{id}?pointInTime=2025-10-03T10:15:30Z
      */
@@ -97,6 +109,19 @@ public class EODAccrualBatchController {
             @RequestBody EODAccrualBatch batch,
             @RequestParam(required = false) String transition) {
         return crudOps.update(id, batch, transition);
+    }
+
+    /**
+     * Update multiple batches in batch
+     * PUT /ui/eod-batches/batch?transition=TRANSITION_NAME&transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PutMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<EODAccrualBatch>>> updateBatches(
+            @RequestBody List<EODAccrualBatch> batches,
+            @RequestParam(required = false) String transition,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.updateAll(batches, transition, transactionWindow, transactionTimeoutMs);
     }
 
     /**

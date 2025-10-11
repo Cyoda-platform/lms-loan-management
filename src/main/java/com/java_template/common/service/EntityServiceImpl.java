@@ -387,6 +387,15 @@ public class EntityServiceImpl implements EntityService {
 
     @Override
     public <T extends CyodaEntity> List<EntityWithMetadata<T>> save(@NotNull final Collection<T> entities) {
+        return save(entities, null, null);
+    }
+
+    @Override
+    public <T extends CyodaEntity> List<EntityWithMetadata<T>> save(
+            @NotNull final Collection<T> entities,
+            @Nullable final Integer transactionWindow,
+            @Nullable final Long transactionTimeoutMs
+    ) {
         if (entities.isEmpty()) {
             return List.of();
         }
@@ -394,7 +403,8 @@ public class EntityServiceImpl implements EntityService {
         T firstEntity = entities.iterator().next();
         ModelSpec modelSpec = firstEntity.getModelKey().modelKey();
 
-        EntityTransactionResponse response = repository.saveAll(modelSpec, entities).join();
+        EntityTransactionResponse response = repository.saveAll(
+                modelSpec, entities, transactionWindow, transactionTimeoutMs).join();
 
         // Extract entity IDs and transaction ID from response
         List<UUID> entityIds = response.getTransactionInfo() != null
@@ -497,7 +507,21 @@ public class EntityServiceImpl implements EntityService {
         return lastChange;
     }
 
-    public <T extends CyodaEntity> List<EntityWithMetadata<T>> updateAll(@NotNull final Collection<T> entities, @Nullable final String transition) {
+    @Override
+    public <T extends CyodaEntity> List<EntityWithMetadata<T>> updateAll(
+            @NotNull final Collection<T> entities,
+            @Nullable final String transition
+    ) {
+        return updateAll(entities, transition, null, null);
+    }
+
+    @Override
+    public <T extends CyodaEntity> List<EntityWithMetadata<T>> updateAll(
+            @NotNull final Collection<T> entities,
+            @Nullable final String transition,
+            @Nullable final Integer transactionWindow,
+            @Nullable final Long transactionTimeoutMs
+    ) {
         if (entities.isEmpty()) {
             return List.of();
         }
@@ -505,8 +529,12 @@ public class EntityServiceImpl implements EntityService {
         T firstEntity = entities.iterator().next();
         ModelSpec modelSpec = firstEntity.getModelKey().modelKey();
 
-        List<EntityTransactionResponse> responses = repository.updateAll(objectMapper.convertValue(entities, new TypeReference<>() {
-        }), transition).join();
+        List<EntityTransactionResponse> responses = repository.updateAll(
+                objectMapper.convertValue(entities, new TypeReference<>() {}),
+                transition,
+                transactionWindow,
+                transactionTimeoutMs
+        ).join();
 
         @SuppressWarnings("unchecked")
         Class<T> entityClass = (Class<T>) firstEntity.getClass();

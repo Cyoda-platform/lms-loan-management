@@ -72,6 +72,18 @@ public class PaymentController {
     }
 
     /**
+     * Record multiple payments in batch
+     * POST /ui/payments/batch?transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<Payment>>> recordPayments(
+            @RequestBody List<Payment> payments,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.createAll(payments, transactionWindow, transactionTimeoutMs);
+    }
+
+    /**
      * Get payment by technical UUID
      * GET /ui/payments/{id}?pointInTime=2025-10-03T10:15:30Z
      */
@@ -125,6 +137,19 @@ public class PaymentController {
             @RequestBody Payment payment,
             @RequestParam(required = false) String transition) {
         return crudOps.update(id, payment, transition);
+    }
+
+    /**
+     * Update multiple payments in batch
+     * PUT /ui/payments/batch?transition=TRANSITION_NAME&transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PutMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<Payment>>> updatePayments(
+            @RequestBody List<Payment> payments,
+            @RequestParam(required = false) String transition,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.updateAll(payments, transition, transactionWindow, transactionTimeoutMs);
     }
 
     /**

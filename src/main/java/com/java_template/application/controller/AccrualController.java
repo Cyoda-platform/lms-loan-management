@@ -54,6 +54,18 @@ public class AccrualController {
     }
 
     /**
+     * Create multiple accruals in batch
+     * POST /ui/accruals/batch?transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<Accrual>>> createAccruals(
+            @RequestBody List<Accrual> accruals,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.createAll(accruals, transactionWindow, transactionTimeoutMs);
+    }
+
+    /**
      * Get accrual by technical UUID
      * GET /ui/accruals/{id}?pointInTime=2025-10-03T10:15:30Z
      */
@@ -96,6 +108,19 @@ public class AccrualController {
             @RequestBody Accrual accrual,
             @RequestParam(required = false) String transition) {
         return crudOps.update(id, accrual, transition);
+    }
+
+    /**
+     * Update multiple accruals in batch
+     * PUT /ui/accruals/batch?transition=TRANSITION_NAME&transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PutMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<Accrual>>> updateAccruals(
+            @RequestBody List<Accrual> accruals,
+            @RequestParam(required = false) String transition,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.updateAll(accruals, transition, transactionWindow, transactionTimeoutMs);
     }
 
     /**

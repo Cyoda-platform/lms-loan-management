@@ -53,6 +53,18 @@ public class GLBatchController {
     }
 
     /**
+     * Create multiple GL batches
+     * POST /ui/gl-batches/batch?transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PostMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<GLBatch>>> createBatches(
+            @RequestBody List<GLBatch> batches,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.createAll(batches, transactionWindow, transactionTimeoutMs);
+    }
+
+    /**
      * Get batch by technical UUID
      * GET /ui/gl-batches/{id}?pointInTime=2025-10-03T10:15:30Z
      */
@@ -111,6 +123,19 @@ public class GLBatchController {
             @RequestBody GLBatch batch,
             @RequestParam(required = false) String transition) {
         return crudOps.update(id, batch, transition);
+    }
+
+    /**
+     * Update multiple batches in batch
+     * PUT /ui/gl-batches/batch?transition=TRANSITION_NAME&transactionWindow=100&transactionTimeoutMs=30000
+     */
+    @PutMapping("/batch")
+    public ResponseEntity<List<EntityWithMetadata<GLBatch>>> updateBatches(
+            @RequestBody List<GLBatch> batches,
+            @RequestParam(required = false) String transition,
+            @RequestParam(required = false) Integer transactionWindow,
+            @RequestParam(required = false) Long transactionTimeoutMs) {
+        return crudOps.updateAll(batches, transition, transactionWindow, transactionTimeoutMs);
     }
 
     /**

@@ -313,6 +313,48 @@ public interface EntityService {
     <T extends CyodaEntity> List<EntityWithMetadata<T>> save(@NotNull Collection<T> entities);
 
     /**
+     * Save multiple entities in batch with transaction control parameters
+     *
+     * @param entities Collection of entities to save
+     * @param transactionWindow Maximum number of entities per transaction (null for default)
+     * @param transactionTimeoutMs Transaction timeout in milliseconds (null for default)
+     * @return List of EntityWithMetadata with saved entities and metadata
+     */
+    <T extends CyodaEntity> List<EntityWithMetadata<T>> save(
+            @NotNull Collection<T> entities,
+            @Nullable Integer transactionWindow,
+            @Nullable Long transactionTimeoutMs
+    );
+
+    /**
+     * Update multiple entities in batch
+     *
+     * @param entities Collection of entities to update (must have id field)
+     * @param transition Optional workflow transition name (null to stay in same state)
+     * @return List of EntityWithMetadata with updated entities and metadata
+     */
+    <T extends CyodaEntity> List<EntityWithMetadata<T>> updateAll(
+            @NotNull Collection<T> entities,
+            @Nullable String transition
+    );
+
+    /**
+     * Update multiple entities in batch with transaction control parameters
+     *
+     * @param entities Collection of entities to update (must have id field)
+     * @param transition Optional workflow transition name (null to stay in same state)
+     * @param transactionWindow Maximum number of entities per transaction (null for default)
+     * @param transactionTimeoutMs Transaction timeout in milliseconds (null for default)
+     * @return List of EntityWithMetadata with updated entities and metadata
+     */
+    <T extends CyodaEntity> List<EntityWithMetadata<T>> updateAll(
+            @NotNull Collection<T> entities,
+            @Nullable String transition,
+            @Nullable Integer transactionWindow,
+            @Nullable Long transactionTimeoutMs
+    );
+
+    /**
      * Delete all entities of a type (DANGEROUS - use with caution)
      *
      * @param modelSpec Model specification containing name and version

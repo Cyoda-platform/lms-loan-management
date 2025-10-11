@@ -474,6 +474,82 @@ public class EntityCrudOperations<T extends CyodaEntity> {
     }
 
     /**
+     * Creates multiple entities in batch.
+     *
+     * @param entities Collection of entities to create
+     * @return ResponseEntity with list of created entities or error
+     */
+    public ResponseEntity<List<EntityWithMetadata<T>>> createAll(List<T> entities) {
+        return createAll(entities, null, null);
+    }
+
+    /**
+     * Creates multiple entities in batch with transaction control parameters.
+     *
+     * @param entities Collection of entities to create
+     * @param transactionWindow Maximum number of entities per transaction (null for default)
+     * @param transactionTimeoutMs Transaction timeout in milliseconds (null for default)
+     * @return ResponseEntity with list of created entities or error
+     */
+    public ResponseEntity<List<EntityWithMetadata<T>>> createAll(
+            List<T> entities,
+            Integer transactionWindow,
+            Long transactionTimeoutMs) {
+        try {
+            List<EntityWithMetadata<T>> responses = entityService.save(entities, transactionWindow, transactionTimeoutMs);
+            logger.info("Created {} {}s", responses.size(), entityName);
+            return ResponseEntity.status(HttpStatus.CREATED).body(responses);
+        } catch (Exception e) {
+            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                    HttpStatus.BAD_REQUEST,
+                    String.format("Failed to create %ss: %s", entityName, e.getMessage())
+            );
+            return ResponseEntity.of(problemDetail).build();
+        }
+    }
+
+    /**
+     * Updates multiple entities in batch.
+     *
+     * @param entities Collection of entities to update (must have id field)
+     * @param transition Optional workflow transition name (null to stay in same state)
+     * @return ResponseEntity with list of updated entities or error
+     */
+    public ResponseEntity<List<EntityWithMetadata<T>>> updateAll(
+            List<T> entities,
+            String transition) {
+        return updateAll(entities, transition, null, null);
+    }
+
+    /**
+     * Updates multiple entities in batch with transaction control parameters.
+     *
+     * @param entities Collection of entities to update (must have id field)
+     * @param transition Optional workflow transition name (null to stay in same state)
+     * @param transactionWindow Maximum number of entities per transaction (null for default)
+     * @param transactionTimeoutMs Transaction timeout in milliseconds (null for default)
+     * @return ResponseEntity with list of updated entities or error
+     */
+    public ResponseEntity<List<EntityWithMetadata<T>>> updateAll(
+            List<T> entities,
+            String transition,
+            Integer transactionWindow,
+            Long transactionTimeoutMs) {
+        try {
+            List<EntityWithMetadata<T>> responses = entityService.updateAll(
+                    entities, transition, transactionWindow, transactionTimeoutMs);
+            logger.info("Updated {} {}s", responses.size(), entityName);
+            return ResponseEntity.ok(responses);
+        } catch (Exception e) {
+            ProblemDetail problemDetail = ProblemDetail.forStatusAndDetail(
+                    HttpStatus.BAD_REQUEST,
+                    String.format("Failed to update %ss: %s", entityName, e.getMessage())
+            );
+            return ResponseEntity.of(problemDetail).build();
+        }
+    }
+
+    /**
      * Record for field filter specification.
      *
      * @param fieldName The JSON path field name (without $. prefix)
