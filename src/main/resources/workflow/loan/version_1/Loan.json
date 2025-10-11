@@ -183,6 +183,23 @@
     "active": {
       "transitions": [
         {
+          "name": "generate_settlement_quote",
+          "next": "active",
+          "manual": true,
+          "processors": [
+            {
+              "name": "GenerateSettlementQuoteProcessor",
+              "executionMode": "SYNC",
+              "config": {
+                "attachEntity": true,
+                "calculationNodesTags": "cyoda_application",
+                "responseTimeoutMs": 20000,
+                "retryPolicy": "FIXED"
+              }
+            }
+          ]
+        },
+        {
           "name": "close_loan",
           "next": "closed",
           "manual": false,
