@@ -95,7 +95,7 @@
             },
             {
               "name": "CalculateAccrualAmount",
-              "executionMode": "ASYNC_NEW_TX",
+              "executionMode": "SYNC",
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "accruals",
