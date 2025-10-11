@@ -178,17 +178,21 @@ This epic covers all functionalities related to receiving and allocating borrowe
 * **As a** Peter, the Payment Processor,  
 * **I want to** manually record a payment received from a borrower against a specific loan.  
 * **So that** the funds can be accurately captured and allocated to the borrower's outstanding balance.  
-* **Acceptance Criteria:**  
-  1. Given I am viewing an ACTIVE loan,  
-     When I use the "Record Payment" action and enter a payment amount and a value date,  
-     And I click "Submit",  
-     Then the system shall create a new Payment entity in the CAPTURED state, associated with the correct loan.  
-  2. Given a new payment has been CAPTURED,  
-     Then the system shall automatically attempt to match it, transitioning it to MATCHED.  
-  3. Given a payment is MATCHED,  
-     Then the system shall automatically allocate the funds (interest first, then principal) and transition it to ALLOCATED.  
-  4. Given a payment is ALLOCATED,  
+* **Acceptance Criteria:**
+  1. Given I am viewing an ACTIVE loan,
+     When I use the "Record Payment" action and enter a payment amount and a value date,
+     And I click "Submit",
+     Then the system shall create a new Payment entity in the CAPTURED state, associated with the correct loan.
+  2. Given a new payment has been CAPTURED,
+     Then the system shall automatically evaluate if the payment matches to an active loan:
+     - If the loan exists and is active, the payment transitions to MATCHED.
+     - If the loan does not exist or is not active, the payment transitions to UNMATCHED for manual resolution.
+  3. Given a payment is MATCHED,
+     Then the system shall automatically allocate the funds (interest first, then principal) and transition it to ALLOCATED.
+  4. Given a payment is ALLOCATED,
      Then the system shall post the sub-ledger entries, update the loan's balances, and transition the payment to POSTED.
+  5. Given a payment is UNMATCHED,
+     Then a user can manually match it to a loan or return the payment to the payer.
 
 **User Story 5: View Payment History**
 
@@ -941,6 +945,38 @@ This represents a single payment received from a borrower and details how the fu
   }
 }
 ```
+
+**Finite State Machine (FSM) Diagram:**
+
+```mermaid
+stateDiagram-v2
+    [*] --> initial
+    initial --> captured: Validation Success
+    initial --> validation_error: Validation Failed
+    validation_error --> initial: FIX
+    captured --> matched: PaymentMatchesToLoanCriterion
+    captured --> unmatched: PaymentNotMatchesToLoanCriterion
+    matched --> allocated: Allocate Funds
+    allocated --> posted: Post Entries
+    unmatched --> matched: Manual Match
+    unmatched --> returned: Return Payment
+    posted --> [*]
+    returned --> [*]
+```
+
+* **State Transition Table:**
+
+| Current State | Triggering Event/Condition | Action/Processor/Criterion | Next State | Notes |
+| :---- | :---- | :---- | :---- | :---- |
+| initial | Create (Auto) | PaymentValidationCriterion | captured | Validation succeeds, payment is captured. |
+| initial | Create (Auto) | PaymentValidationFailedCriterion, AttachPaymentValidationErrorProcessor | validation\_error | Validation fails, error details attached. |
+| validation\_error | FIX (Manual) | ClearValidationErrorReasonProcessor | initial | User corrects data and retries. |
+| captured | Auto | PaymentMatchesToLoanCriterion | matched | Payment successfully matches to an active loan. |
+| captured | Auto | PaymentNotMatchesToLoanCriterion | unmatched | Payment cannot be matched to an active loan. |
+| matched | Auto | AllocatePaymentFunds (SYNC) | allocated | Funds allocated per waterfall rules. |
+| allocated | Auto | PostPaymentEntries (ASYNC\_NEW\_TX) | posted | Sub-ledger entries posted, loan balances updated. |
+| unmatched | Manual Match (Manual) | ManualMatchPayment (SYNC) | matched | User manually matches payment to correct loan. |
+| unmatched | Return Payment (Manual) | ReturnPayment (SYNC) | returned | Payment returned to payer. |
 
 #### **3.3.5. GLBatch**
 

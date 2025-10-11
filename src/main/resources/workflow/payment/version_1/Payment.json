@@ -82,10 +82,10 @@
           "name": "match_payment",
           "next": "matched",
           "manual": false,
-          "processors": [
-            {
-              "name": "MatchPaymentToLoan",
-              "executionMode": "ASYNC_NEW_TX",
+          "criterion": {
+            "type": "function",
+            "function": {
+              "name": "PaymentMatchesToLoanCriterion",
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
@@ -93,12 +93,24 @@
                 "retryPolicy": "FIXED"
               }
             }
-          ]
+          }
         },
         {
           "name": "mark_unmatched",
           "next": "unmatched",
-          "manual": true
+          "manual": false,
+          "criterion": {
+            "type": "function",
+            "function": {
+              "name": "PaymentNotMatchesToLoanCriterion",
+              "config": {
+                "attachEntity": true,
+                "calculationNodesTags": "cyoda_application",
+                "responseTimeoutMs": 20000,
+                "retryPolicy": "FIXED"
+              }
+            }
+          }
         }
       ]
     },

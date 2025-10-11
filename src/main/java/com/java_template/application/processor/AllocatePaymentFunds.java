@@ -10,6 +10,7 @@ import com.java_template.common.service.EntityService;
 import com.java_template.common.workflow.CyodaEventContext;
 import com.java_template.common.workflow.CyodaProcessor;
 import com.java_template.common.workflow.OperationSpecification;
+import io.grpc.StatusRuntimeException;
 import org.cyoda.cloud.api.event.common.ModelSpec;
 import org.cyoda.cloud.api.event.common.condition.GroupCondition;
 import org.cyoda.cloud.api.event.common.condition.Operation;
@@ -22,6 +23,7 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 /**
  * ABOUTME: This processor allocates payment funds according to the waterfall rules:
@@ -154,42 +156,78 @@ public class AllocatePaymentFunds implements CyodaProcessor {
     }
 
     private void updateLoanBalances(Loan loan, Payment.PaymentAllocation allocation) {
-        try {
-            // Update accrued interest balance
-            BigDecimal newAccruedInterest = loan.getAccruedInterest().subtract(allocation.getInterestAllocated());
-            loan.setAccruedInterest(newAccruedInterest.max(BigDecimal.ZERO));
+        final int maxRetries = 20;
+        int attempt = 0;
 
-            // Update outstanding principal balance
-            BigDecimal newOutstandingPrincipal = loan.getOutstandingPrincipal().subtract(allocation.getPrincipalAllocated());
-            loan.setOutstandingPrincipal(newOutstandingPrincipal.max(BigDecimal.ZERO));
+        while (attempt < maxRetries) {
+            try {
+                attempt++;
 
-            // Find the loan entity and update it
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            ObjectMapper objectMapper = new ObjectMapper();
+                // Reload the loan to get the latest version
+                Loan currentLoan = getLoanForPayment(loan.getLoanId());
+                if (currentLoan == null) {
+                    throw new IllegalStateException("Cannot find loan for update: " + loan.getLoanId());
+                }
 
-            SimpleCondition condition = new SimpleCondition()
-                    .withJsonPath("$.loanId")
-                    .withOperation(Operation.EQUALS)
-                    .withValue(objectMapper.valueToTree(loan.getLoanId()));
+                // Update accrued interest balance
+                BigDecimal newAccruedInterest = currentLoan.getAccruedInterest().subtract(allocation.getInterestAllocated());
+                currentLoan.setAccruedInterest(newAccruedInterest.max(BigDecimal.ZERO));
 
-            GroupCondition groupCondition = new GroupCondition()
-                    .withOperator(GroupCondition.Operator.AND)
-                    .withConditions(List.of(condition));
+                // Update outstanding principal balance
+                BigDecimal newOutstandingPrincipal = currentLoan.getOutstandingPrincipal().subtract(allocation.getPrincipalAllocated());
+                currentLoan.setOutstandingPrincipal(newOutstandingPrincipal.max(BigDecimal.ZERO));
 
-            List<EntityWithMetadata<Loan>> loans = entityService.search(modelSpec, groupCondition, Loan.class);
+                // Find the loan entity and update it
+                ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
+                ObjectMapper objectMapper = new ObjectMapper();
 
-            if (!loans.isEmpty()) {
-                EntityWithMetadata<Loan> loanWithMetadata = loans.getFirst();
-                // Update the loan without transition (loop back to same state)
-                entityService.update(loanWithMetadata.metadata().getId(), loan, null);
+                SimpleCondition condition = new SimpleCondition()
+                        .withJsonPath("$.loanId")
+                        .withOperation(Operation.EQUALS)
+                        .withValue(objectMapper.valueToTree(currentLoan.getLoanId()));
 
-                logger.debug("Updated loan balances: AccruedInterest={}, OutstandingPrincipal={}",
-                           newAccruedInterest, newOutstandingPrincipal);
+                GroupCondition groupCondition = new GroupCondition()
+                        .withOperator(GroupCondition.Operator.AND)
+                        .withConditions(List.of(condition));
+
+                List<EntityWithMetadata<Loan>> loans = entityService.search(modelSpec, groupCondition, Loan.class);
+
+                if (!loans.isEmpty()) {
+                    EntityWithMetadata<Loan> loanWithMetadata = loans.getFirst();
+                    // Update the loan without transition (loop back to same state)
+                    entityService.update(loanWithMetadata.metadata().getId(), currentLoan, null);
+
+                    logger.debug("Updated loan balances: AccruedInterest={}, OutstandingPrincipal={}",
+                               newAccruedInterest, newOutstandingPrincipal);
+                }
+
+                // Success - exit the retry loop
+                return;
+
+            } catch (CompletionException e) {
+                if (isVersionMismatchError(e) && attempt < maxRetries) {
+                    logger.warn("Version mismatch detected on attempt {} for loan: {}. Retrying...",
+                               attempt, loan.getLoanId());
+                    continue;
+                }
+                logger.error("Error updating loan balances for loan: {} after {} attempts", loan.getLoanId(), attempt, e);
+                throw new RuntimeException("Failed to update loan balances", e);
+            } catch (Exception e) {
+                logger.error("Error updating loan balances for loan: {}", loan.getLoanId(), e);
+                throw new RuntimeException("Failed to update loan balances", e);
             }
-
-        } catch (Exception e) {
-            logger.error("Error updating loan balances for loan: {}", loan.getLoanId(), e);
-            throw new RuntimeException("Failed to update loan balances", e);
         }
+
+        throw new RuntimeException("Failed to update loan balances after " + maxRetries + " attempts due to version mismatch");
+    }
+
+    private boolean isVersionMismatchError(CompletionException e) {
+        Throwable cause = e.getCause();
+        if (cause instanceof StatusRuntimeException) {
+            StatusRuntimeException statusException = (StatusRuntimeException) cause;
+            String detailMessage = statusException.getMessage();
+            return detailMessage != null && detailMessage.contains("failed due to a version mismatch");
+        }
+        return false;
     }
 }

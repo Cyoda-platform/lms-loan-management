@@ -5,6 +5,8 @@ import io.cloudevents.v1.proto.CloudEvent;
 import org.cyoda.cloud.api.event.common.CloudEventType;
 import org.cyoda.cloud.api.event.processing.EventAckResponse;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class KeepAliveEventHandlingStrategy implements EventHandlingStrategy<EventAckResponse> {
 
+    private final Logger log = LoggerFactory.getLogger(this.getClass());
     private final CloudEventParser cloudEventParser;
     private final EventTracker eventTracker;
 
@@ -32,17 +35,20 @@ public class KeepAliveEventHandlingStrategy implements EventHandlingStrategy<Eve
 
     @Override
     public EventAckResponse handleEvent(@NotNull final CloudEvent cloudEvent) {
+        log.debug("[IN] Received keep alive event: {}", cloudEvent.getTextData());
         eventTracker.trackKeepAlive(System.currentTimeMillis());
+        log.debug("Parsed keep alive event: {}", cloudEvent.getTextData());
         final var resp = cloudEventParser.parseCloudEvent(
                 cloudEvent,
                 EventAckResponse.class
         ).orElse(null);
-
+        log.debug("Parsed keep alive event: {}", resp);
         if (resp == null) {
             return null;
         }
 
         resp.setSourceEventId(resp.getId());
+        log.debug("Done with keep alive event: {}", resp);
         return resp;
     }
 }
