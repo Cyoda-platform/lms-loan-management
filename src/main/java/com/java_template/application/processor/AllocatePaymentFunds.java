@@ -223,10 +223,12 @@ public class AllocatePaymentFunds implements CyodaProcessor {
 
     private boolean isVersionMismatchError(CompletionException e) {
         Throwable cause = e.getCause();
-        if (cause instanceof StatusRuntimeException) {
-            StatusRuntimeException statusException = (StatusRuntimeException) cause;
+        if (cause instanceof StatusRuntimeException statusException) {
             String detailMessage = statusException.getMessage();
-            return detailMessage != null && detailMessage.contains("failed due to a version mismatch");
+            return detailMessage != null && (
+                    detailMessage.contains("failed due to a version mismatch") ||
+                    detailMessage.contains("was changed by another transaction")
+            );
         }
         return false;
     }
