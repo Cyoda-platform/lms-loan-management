@@ -71,8 +71,9 @@ public class NewLoanValidationCriterion implements CyodaCriterion {
         }
 
         if (!loan.isValid(context.entityWithMetadata().metadata())) {
-            logger.warn("Loan entity is not valid: {}", loan.getLoanId());
-            return EvaluationOutcome.fail("Loan entity is not valid", StandardEvalReasonCategories.VALIDATION_FAILURE);
+            String reason = loan.getValidationFailureReason(context.entityWithMetadata().metadata());
+            logger.warn("Loan entity is not valid: {} - {}", loan.getLoanId(), reason);
+            return EvaluationOutcome.fail(reason, StandardEvalReasonCategories.VALIDATION_FAILURE);
         }
 
         // Validate term is one of allowed values

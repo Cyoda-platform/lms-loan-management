@@ -68,6 +68,41 @@ public class Payment implements CyodaEntity {
     }
 
     /**
+     * Returns a detailed reason why the entity is invalid.
+     * This method should only be called when isValid() returns false.
+     *
+     * @param metadata the entity metadata
+     * @return a human-readable string describing the validation failure
+     */
+    public String getValidationFailureReason(EntityMetadata metadata) {
+        if (paymentId == null || paymentId.trim().isEmpty()) {
+            return "Payment ID is required";
+        }
+        if (loanId == null || loanId.trim().isEmpty()) {
+            return "Loan ID is required";
+        }
+        if (payerPartyId == null || payerPartyId.trim().isEmpty()) {
+            return "Payer Party ID is required";
+        }
+        if (paymentAmount == null) {
+            return "Payment amount is required";
+        }
+        if (paymentAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return "Payment amount must be positive (got: " + paymentAmount + ")";
+        }
+        if (currency == null || currency.trim().isEmpty()) {
+            return "Currency is required";
+        }
+        if (valueDate == null) {
+            return "Value date is required";
+        }
+        if (receivedDate == null) {
+            return "Received date is required";
+        }
+        return "Payment entity validation failed for unknown reason";
+    }
+
+    /**
      * Nested class for payment allocation details
      */
     @Data

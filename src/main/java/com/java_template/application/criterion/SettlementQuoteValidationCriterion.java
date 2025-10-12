@@ -59,8 +59,9 @@ public class SettlementQuoteValidationCriterion implements CyodaCriterion {
         }
 
         if (!quote.isValid(context.entityWithMetadata().metadata())) {
-            logger.warn("SettlementQuote entity is not valid: {}", quote.getQuoteId());
-            return EvaluationOutcome.fail("SettlementQuote entity is not valid", StandardEvalReasonCategories.VALIDATION_FAILURE);
+            String reason = quote.getValidationFailureReason(context.entityWithMetadata().metadata());
+            logger.warn("SettlementQuote entity is not valid: {} - {}", quote.getQuoteId(), reason);
+            return EvaluationOutcome.fail(reason, StandardEvalReasonCategories.VALIDATION_FAILURE);
         }
 
         // Validate required fields

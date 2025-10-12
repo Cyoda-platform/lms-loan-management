@@ -150,5 +150,31 @@ public class EODAccrualBatch implements CyodaEntity {
 
         return true;
     }
+
+    /**
+     * Returns a detailed reason why the entity is invalid.
+     * This method should only be called when isValid() returns false.
+     *
+     * @param metadata the entity metadata
+     * @return a human-readable string describing the validation failure
+     */
+    public String getValidationFailureReason(EntityMetadata metadata) {
+        if (asOfDate == null) {
+            return "As-of date is required";
+        }
+        if (mode == null) {
+            return "Batch mode is required";
+        }
+        if (initiatedBy == null || initiatedBy.trim().isEmpty()) {
+            return "Initiated by is required";
+        }
+        if (mode == BatchMode.BACKDATED && (reasonCode == null || reasonCode.trim().isEmpty())) {
+            return "Reason code is required when mode is BACKDATED";
+        }
+        if (metrics == null) {
+            return "Metrics object must be initialized";
+        }
+        return "EODAccrualBatch entity validation failed for unknown reason";
+    }
 }
 

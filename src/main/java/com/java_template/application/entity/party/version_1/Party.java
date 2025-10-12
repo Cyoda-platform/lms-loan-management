@@ -48,6 +48,26 @@ public class Party implements CyodaEntity {
     }
 
     /**
+     * Returns a detailed reason why the entity is invalid.
+     * This method should only be called when isValid() returns false.
+     *
+     * @param metadata the entity metadata
+     * @return a human-readable string describing the validation failure
+     */
+    public String getValidationFailureReason(EntityMetadata metadata) {
+        if (partyId == null || partyId.trim().isEmpty()) {
+            return "Party ID is required";
+        }
+        if (legalName == null || legalName.trim().isEmpty()) {
+            return "Legal name is required";
+        }
+        if (jurisdiction == null || jurisdiction.trim().isEmpty()) {
+            return "Jurisdiction is required";
+        }
+        return "Party entity validation failed for unknown reason";
+    }
+
+    /**
      * Nested class for contact information
      */
     @Data

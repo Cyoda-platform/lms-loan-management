@@ -76,8 +76,9 @@ public class GLBatchValidationCriterion implements CyodaCriterion {
         }
 
         if (!batch.isValid(context.entityWithMetadata().metadata())) {
-            logger.warn("GLBatch entity is not valid: {}", batch.getBatchId());
-            return EvaluationOutcome.fail("GLBatch entity is not valid", StandardEvalReasonCategories.VALIDATION_FAILURE);
+            String reason = batch.getValidationFailureReason(context.entityWithMetadata().metadata());
+            logger.warn("GLBatch entity is not valid: {} - {}", batch.getBatchId(), reason);
+            return EvaluationOutcome.fail(reason, StandardEvalReasonCategories.VALIDATION_FAILURE);
         }
 
         // Validate period format

@@ -191,6 +191,51 @@ public class Accrual implements CyodaEntity {
     }
 
     /**
+     * Returns a detailed reason why the entity is invalid.
+     * This method should only be called when isValid() returns false.
+     *
+     * @param metadata the entity metadata
+     * @return a human-readable string describing the validation failure
+     */
+    public String getValidationFailureReason(EntityMetadata metadata) {
+        if (loanId == null || loanId.trim().isEmpty()) {
+            return "Loan ID is required";
+        }
+        if (asOfDate == null) {
+            return "As-of date is required";
+        }
+        if (currency == null || currency.trim().isEmpty()) {
+            return "Currency is required";
+        }
+
+        // Validate currency is a valid ISO-4217 code
+        try {
+            Currency.getInstance(currency);
+        } catch (IllegalArgumentException e) {
+            return "Currency must be a valid ISO-4217 code (got: " + currency + ")";
+        }
+
+        // For POSTED accruals, validate debit/credit balance
+        if (Objects.equals(metadata.getState(), AccrualState.POSTED.name())) {
+            if (!isBalanced()) {
+                return "Journal entries must be balanced (debits must equal credits) for POSTED accruals";
+            }
+        }
+
+        // Validate all journal entries if present
+        if (journalEntries != null) {
+            for (int i = 0; i < journalEntries.size(); i++) {
+                JournalEntry entry = journalEntries.get(i);
+                if (!entry.isValid()) {
+                    return "Journal entry at index " + i + " is invalid";
+                }
+            }
+        }
+
+        return "Accrual entity validation failed for unknown reason";
+    }
+
+    /**
      * Checks if the journal entries are balanced (sum of debits equals sum of credits).
      * This is a required invariant for POSTED accruals.
      *

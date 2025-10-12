@@ -92,6 +92,23 @@ public class GLBatch implements CyodaEntity {
     }
 
     /**
+     * Returns a detailed reason why the entity is invalid.
+     * This method should only be called when isValid() returns false.
+     *
+     * @param metadata the entity metadata
+     * @return a human-readable string describing the validation failure
+     */
+    public String getValidationFailureReason(EntityMetadata metadata) {
+        if (batchId == null || batchId.trim().isEmpty()) {
+            return "Batch ID is required";
+        }
+        if (period == null || period.trim().isEmpty()) {
+            return "Period is required";
+        }
+        return "GLBatch entity validation failed for unknown reason";
+    }
+
+    /**
      * Nested class for GL line (embedded within GLBatch, not a separate entity)
      */
     @Data

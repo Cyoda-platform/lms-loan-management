@@ -56,8 +56,9 @@ public class NewPartyValidationCriterion implements CyodaCriterion {
         }
 
         if (!party.isValid(context.entityWithMetadata().metadata())) {
-            logger.warn("Party entity is not valid: {}", party.getPartyId());
-            return EvaluationOutcome.fail("Party entity is not valid", StandardEvalReasonCategories.VALIDATION_FAILURE);
+            String reason = party.getValidationFailureReason(context.entityWithMetadata().metadata());
+            logger.warn("Party entity is not valid: {} - {}", party.getPartyId(), reason);
+            return EvaluationOutcome.fail(reason, StandardEvalReasonCategories.VALIDATION_FAILURE);
         }
 
         // Validate required fields

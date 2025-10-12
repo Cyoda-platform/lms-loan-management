@@ -62,6 +62,41 @@ public class SettlementQuote implements CyodaEntity {
     }
 
     /**
+     * Returns a detailed reason why the entity is invalid.
+     * This method should only be called when isValid() returns false.
+     *
+     * @param metadata the entity metadata
+     * @return a human-readable string describing the validation failure
+     */
+    public String getValidationFailureReason(EntityMetadata metadata) {
+        if (quoteId == null || quoteId.trim().isEmpty()) {
+            return "Quote ID is required";
+        }
+        if (loanId == null || loanId.trim().isEmpty()) {
+            return "Loan ID is required";
+        }
+        if (settlementDate == null) {
+            return "Settlement date is required";
+        }
+        if (expirationDate == null) {
+            return "Expiration date is required";
+        }
+        if (requestedBy == null || requestedBy.trim().isEmpty()) {
+            return "Requested by is required";
+        }
+        if (totalAmountDue == null) {
+            return "Total amount due is required";
+        }
+        if (totalAmountDue.compareTo(BigDecimal.ZERO) <= 0) {
+            return "Total amount due must be positive (got: " + totalAmountDue + ")";
+        }
+        if (currency == null || currency.trim().isEmpty()) {
+            return "Currency is required";
+        }
+        return "SettlementQuote entity validation failed for unknown reason";
+    }
+
+    /**
      * Nested class for settlement calculation breakdown
      */
     @Data

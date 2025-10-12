@@ -120,6 +120,50 @@ public class Loan implements CyodaEntity {
     }
 
     /**
+     * Returns a detailed reason why the entity is invalid.
+     * This method should only be called when isValid() returns false.
+     *
+     * @param metadata the entity metadata
+     * @return a human-readable string describing the validation failure
+     */
+    public String getValidationFailureReason(EntityMetadata metadata) {
+        if (loanId == null || loanId.trim().isEmpty()) {
+            return "Loan ID is required";
+        }
+        if (agreementId == null || agreementId.trim().isEmpty()) {
+            return "Agreement ID is required";
+        }
+        if (partyId == null || partyId.trim().isEmpty()) {
+            return "Party ID is required";
+        }
+        if (principalAmount == null) {
+            return "Principal amount is required";
+        }
+        if (principalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            return "Principal amount must be positive (got: " + principalAmount + ")";
+        }
+        if (apr == null) {
+            return "APR is required";
+        }
+        if (apr.compareTo(BigDecimal.ZERO) <= 0) {
+            return "APR must be positive (got: " + apr + ")";
+        }
+        if (termMonths == null) {
+            return "Term months is required";
+        }
+        if (termMonths != 12 && termMonths != 24 && termMonths != 36) {
+            return "Term must be 12, 24, or 36 months (got: " + termMonths + ")";
+        }
+        if (fundingDate == null) {
+            return "Funding date is required";
+        }
+        if (maturityDate == null) {
+            return "Maturity date is required";
+        }
+        return "Loan entity validation failed for unknown reason";
+    }
+
+    /**
      * Nested class for loan parties (borrowers, lenders, agents)
      */
     @Data

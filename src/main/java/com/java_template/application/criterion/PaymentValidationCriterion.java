@@ -58,14 +58,15 @@ public class PaymentValidationCriterion implements CyodaCriterion {
         }
 
         if (!payment.isValid(context.entityWithMetadata().metadata())) {
-            logger.warn("Payment entity is not valid: {}", payment.getPaymentId());
-            return EvaluationOutcome.fail("Payment entity is not valid", StandardEvalReasonCategories.VALIDATION_FAILURE);
+            String reason = payment.getValidationFailureReason(context.entityWithMetadata().metadata());
+            logger.warn("Payment entity is not valid: {} - {}", payment.getPaymentId(), reason);
+            return EvaluationOutcome.fail(reason, StandardEvalReasonCategories.VALIDATION_FAILURE);
         }
 
-        // Business rule: Payment amount should be positive
+        // Business rule: Payment amount should be positive (already checked in isValid, but kept for clarity)
         if (payment.getPaymentAmount() != null && payment.getPaymentAmount().compareTo(BigDecimal.ZERO) <= 0) {
             logger.warn("Payment amount is not positive: {}", payment.getPaymentAmount());
-            return EvaluationOutcome.fail("Payment amount must be positive", StandardEvalReasonCategories.BUSINESS_RULE_FAILURE);
+            return EvaluationOutcome.fail("Payment amount must be positive (got: " + payment.getPaymentAmount() + ")", StandardEvalReasonCategories.BUSINESS_RULE_FAILURE);
         }
 
         return EvaluationOutcome.success();
