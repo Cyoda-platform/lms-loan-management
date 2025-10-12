@@ -1,0 +1,27 @@
+{
+  "paymentId" : "PAY-2024-001",
+  "loanId" : "LOAN-2024-001",
+  "payerPartyId" : "PARTY-001",
+  "paymentAmount" : 15000.00,
+  "currency" : "GBP",
+  "valueDate" : "2024-02-15",
+  "receivedDate" : "2024-02-15",
+  "paymentMethod" : "BANK_TRANSFER",
+  "reference" : "WIRE-REF-123456",
+  "allocation" : {
+    "interestAllocated" : 4791.67,
+    "feesAllocated" : 0.00,
+    "principalAllocated" : 10208.33,
+    "excessFunds" : 0.00
+  },
+  "subLedgerEntries" : null,
+  "audit" : {
+    "createdAt" : "2024-02-15T10:30:00",
+    "createdBy" : "system",
+    "postedAt" : "2024-02-15T10:35:00",
+    "postedBy" : "system",
+    "modifiedAt" : null,
+    "modifiedBy" : null
+  },
+  "validationErrorReason" : null
+}

@@ -1,0 +1,19 @@
+{
+  "loanId" : "LOAN-2024-001",
+  "agreementId" : "AGR-2024-001",
+  "partyId" : "PARTY-001",
+  "principalAmount" : 1000000.00,
+  "apr" : 5.75,
+  "termMonths" : 36,
+  "fundingDate" : "2024-01-15",
+  "maturityDate" : "2027-01-15",
+  "outstandingPrincipal" : 1000000.00,
+  "accruedInterest" : 0.00,
+  "purpose" : "General corporate purposes",
+  "governingLaw" : "England and Wales",
+  "dayCountBasis" : "ACT/365",
+  "currency" : "GBP",
+  "parties" : null,
+  "facilities" : null,
+  "validationErrorReason" : null
+}

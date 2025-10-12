@@ -1,0 +1,22 @@
+{
+  "partyId" : "PARTY-001",
+  "legalName" : "Acme Corporation Ltd",
+  "jurisdiction" : "England and Wales",
+  "lei" : "213800ABCDEF1234567890",
+  "role" : "Borrower",
+  "contact" : {
+    "contactName" : "John Smith",
+    "email" : "john.smith@acmecorp.com",
+    "phone" : "+44 20 7123 4567",
+    "fax" : null
+  },
+  "address" : {
+    "line1" : "123 Business Park",
+    "line2" : "Suite 400",
+    "city" : "London",
+    "state" : null,
+    "postcode" : "EC1A 1BB",
+    "country" : "United Kingdom"
+  },
+  "validationErrorReason" : null
+}

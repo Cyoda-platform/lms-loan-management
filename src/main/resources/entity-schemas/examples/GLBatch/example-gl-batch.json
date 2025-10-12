@@ -1,0 +1,44 @@
+{
+  "batchId" : "GL-BATCH-2024-01",
+  "period" : "2024-01",
+  "status" : "PREPARED",
+  "exportFormat" : "CSV",
+  "controlTotals" : {
+    "totalDebits" : 95000.00,
+    "totalCredits" : 95000.00,
+    "lineCount" : 2,
+    "isBalanced" : true
+  },
+  "glLines" : [ {
+    "glLineId" : "GL-LINE-001",
+    "glAccount" : "1100-Interest-Receivable",
+    "description" : "January 2024 interest accrual",
+    "type" : "DEBIT",
+    "amount" : 47500.00,
+    "currency" : "GBP",
+    "product" : "Commercial Loans",
+    "costCenter" : "CC-001"
+  }, {
+    "glLineId" : "GL-LINE-002",
+    "glAccount" : "4100-Interest-Income",
+    "description" : "January 2024 interest accrual",
+    "type" : "CREDIT",
+    "amount" : 47500.00,
+    "currency" : "GBP",
+    "product" : "Commercial Loans",
+    "costCenter" : "CC-001"
+  } ],
+  "approvals" : {
+    "makerUserId" : "finance-user-001",
+    "makerApprovedAt" : "2024-02-01T09:00:00",
+    "makerRole" : "Finance Analyst",
+    "checkerUserId" : null,
+    "checkerApprovedAt" : null,
+    "checkerRole" : null
+  },
+  "exportFilePath" : null,
+  "exportedAt" : null,
+  "acknowledgmentReceivedAt" : null,
+  "archivedAt" : null,
+  "validationErrorReason" : null
+}

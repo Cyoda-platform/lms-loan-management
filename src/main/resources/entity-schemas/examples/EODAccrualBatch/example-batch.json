@@ -1,0 +1,21 @@
+{
+  "batchId" : "550e8400-e29b-41d4-a716-446655440000",
+  "asOfDate" : "2024-01-15",
+  "mode" : "TODAY",
+  "initiatedBy" : "system-scheduler",
+  "reasonCode" : null,
+  "loanFilter" : null,
+  "periodStatus" : "OPEN",
+  "cascadeFromDate" : null,
+  "metrics" : {
+    "eligibleLoans" : 150,
+    "processedLoans" : 150,
+    "accrualsCreated" : 150,
+    "postings" : 300,
+    "debited" : 23629.50,
+    "credited" : 23629.50,
+    "imbalances" : 0
+  },
+  "reportId" : "650e8400-e29b-41d4-a716-446655440001",
+  "validationErrorReason" : null
+}

@@ -1,0 +1,29 @@
+{
+  "quoteId" : "QUOTE-2024-001",
+  "loanId" : "LOAN-2024-001",
+  "settlementDate" : "2024-06-30",
+  "expirationDate" : "2024-06-15",
+  "requestedBy" : "borrower-user-001",
+  "calculation" : {
+    "outstandingPrincipal" : 950000.00,
+    "accruedInterestToDate" : 12500.00,
+    "projectedInterestToSettlement" : 2300.00,
+    "fees" : 500.00,
+    "breakCosts" : 5000.00,
+    "totalInterest" : 14800.00,
+    "calculationMethod" : "ACT/365",
+    "dayCountBasis" : "ACT/365"
+  },
+  "totalAmountDue" : 970300.00,
+  "currency" : "GBP",
+  "audit" : {
+    "createdAt" : "2024-06-01T10:00:00",
+    "createdBy" : "system",
+    "quotedAt" : "2024-06-01T10:05:00",
+    "quotedBy" : "finance-user-001",
+    "acceptedAt" : null,
+    "acceptedBy" : null,
+    "expiredAt" : null
+  },
+  "validationErrorReason" : null
+}

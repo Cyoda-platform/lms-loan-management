@@ -1,0 +1,81 @@
+{
+  "loanId" : "LOAN-2024-002",
+  "agreementId" : "AGR-2024-002",
+  "partyId" : "PARTY-002",
+  "principalAmount" : 5000000.00,
+  "apr" : 6.25,
+  "termMonths" : 60,
+  "fundingDate" : "2024-03-01",
+  "maturityDate" : "2029-03-01",
+  "outstandingPrincipal" : 5000000.00,
+  "accruedInterest" : 0.00,
+  "purpose" : "Acquisition financing",
+  "governingLaw" : "England and Wales",
+  "dayCountBasis" : "ACT/365",
+  "currency" : "GBP",
+  "parties" : [ {
+    "partyId" : "PARTY-002",
+    "name" : "TechCorp Industries Ltd",
+    "lei" : "213800TECHCORP123456",
+    "role" : "Borrower",
+    "jurisdiction" : "England and Wales",
+    "commitmentAmount" : 5000000.00,
+    "commitmentCurrency" : "GBP"
+  }, {
+    "partyId" : "PARTY-LENDER-001",
+    "name" : "Global Bank plc",
+    "lei" : "213800GLOBALBANK12345",
+    "role" : "Lender",
+    "jurisdiction" : "England and Wales",
+    "commitmentAmount" : 5000000.00,
+    "commitmentCurrency" : "GBP"
+  } ],
+  "facilities" : [ {
+    "facilityId" : "FAC-001",
+    "type" : "Term Loan",
+    "currency" : "GBP",
+    "limit" : 5000000.00,
+    "availability" : {
+      "startDate" : "2024-03-01",
+      "endDate" : "2024-06-01",
+      "conditionsPrecedent" : [ "Executed loan agreement", "Security documentation in place", "No material adverse change" ]
+    },
+    "tranches" : [ {
+      "trancheId" : "TRANCHE-A",
+      "limit" : 5000000.00,
+      "purpose" : "Acquisition financing",
+      "interest" : {
+        "index" : "SONIA",
+        "tenor" : "3M",
+        "spreadBps" : 275,
+        "floorRate" : 0.00,
+        "dayCount" : "ACT/365F",
+        "rateReset" : {
+          "frequency" : "Quarterly",
+          "businessDayConvention" : "ModifiedFollowing"
+        },
+        "compounding" : "Compound"
+      },
+      "fees" : [ {
+        "feeId" : "FEE-001",
+        "type" : "Arrangement",
+        "basis" : "Upfront",
+        "rateBps" : null,
+        "amount" : 50000.00,
+        "accrualDayCount" : null,
+        "payFrequency" : null,
+        "payOn" : "Signing"
+      } ],
+      "amortization" : {
+        "type" : "Bullet",
+        "schedule" : [ ]
+      },
+      "covenants" : null,
+      "collateral" : null
+    } ],
+    "drawdowns" : null,
+    "repayments" : null,
+    "prepayment" : null
+  } ],
+  "validationErrorReason" : null
+}
