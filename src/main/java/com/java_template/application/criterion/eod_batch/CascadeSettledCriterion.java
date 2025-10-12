@@ -104,66 +104,57 @@ public class CascadeSettledCriterion implements CyodaCriterion {
             return EvaluationOutcome.success();
         }
 
-        try {
-            // Query for accruals in the cascade date range for this batch
-            ModelSpec accrualModelSpec = new ModelSpec()
-                .withName(Accrual.ENTITY_NAME)
-                .withVersion(Accrual.ENTITY_VERSION);
+        // Query for accruals in the cascade date range for this batch
+        ModelSpec accrualModelSpec = new ModelSpec()
+            .withName(Accrual.ENTITY_NAME)
+            .withVersion(Accrual.ENTITY_VERSION);
 
-            // Search for accruals with asOfDate >= cascadeFromDate AND runId = batchId
-            SimpleCondition dateCondition = new SimpleCondition()
-                .withJsonPath("$.asOfDate")
-                .withOperation(Operation.GREATER_OR_EQUAL)
-                .withValue(objectMapper.valueToTree(cascadeFromDate.toString()));
+        // Search for accruals with asOfDate >= cascadeFromDate AND runId = batchId
+        SimpleCondition dateCondition = new SimpleCondition()
+            .withJsonPath("$.asOfDate")
+            .withOperation(Operation.GREATER_OR_EQUAL)
+            .withValue(objectMapper.valueToTree(cascadeFromDate.toString()));
 
-            SimpleCondition runIdCondition = new SimpleCondition()
-                .withJsonPath("$.runId")
-                .withOperation(Operation.EQUALS)
-                .withValue(objectMapper.valueToTree(batchId.toString()));
+        SimpleCondition runIdCondition = new SimpleCondition()
+            .withJsonPath("$.runId")
+            .withOperation(Operation.EQUALS)
+            .withValue(objectMapper.valueToTree(batchId.toString()));
 
-            GroupCondition searchCondition = new GroupCondition()
-                .withOperator(GroupCondition.Operator.AND)
-                .withConditions(List.of(dateCondition, runIdCondition));
+        GroupCondition searchCondition = new GroupCondition()
+            .withOperator(GroupCondition.Operator.AND)
+            .withConditions(List.of(dateCondition, runIdCondition));
 
-            List<EntityWithMetadata<Accrual>> cascadeAccruals =
-                entityService.search(accrualModelSpec, searchCondition, Accrual.class);
+        List<EntityWithMetadata<Accrual>> cascadeAccruals =
+            entityService.search(accrualModelSpec, searchCondition, Accrual.class);
 
-            if (cascadeAccruals.isEmpty()) {
-                // No cascade accruals found - may still be spawning
-                logger.debug("No cascade accruals found for batch {} from date {}", batchId, cascadeFromDate);
-                return EvaluationOutcome.fail(
-                    "Cascade recalculations have not been initiated yet",
-                    StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
-                );
-            }
-
-            // Check if all cascade accruals are in terminal states
-            long totalCascadeAccruals = cascadeAccruals.size();
-            long settledCascadeAccruals = cascadeAccruals.stream()
-                .filter(a -> TERMINAL_STATES.contains(AccrualState.valueOf(a.getState())))
-                .count();
-
-            if (settledCascadeAccruals < totalCascadeAccruals) {
-                long pendingCascadeAccruals = totalCascadeAccruals - settledCascadeAccruals;
-                logger.debug("Batch {} has {} pending cascade accruals out of {} total",
-                    batchId, pendingCascadeAccruals, totalCascadeAccruals);
-                return EvaluationOutcome.fail(
-                    String.format("%d of %d cascade accruals are still processing",
-                        pendingCascadeAccruals, totalCascadeAccruals),
-                    StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
-                );
-            }
-
-            logger.info("All {} cascade accruals for batch {} are settled", totalCascadeAccruals, batchId);
-            return EvaluationOutcome.success();
-
-        } catch (Exception e) {
-            logger.error("Error querying for cascade accruals: {}", e.getMessage(), e);
+        if (cascadeAccruals.isEmpty()) {
+            // No cascade accruals found - may still be spawning
+            logger.debug("No cascade accruals found for batch {} from date {}", batchId, cascadeFromDate);
             return EvaluationOutcome.fail(
-                "Failed to check cascade status: " + e.getMessage(),
-                StandardEvalReasonCategories.DATA_QUALITY_FAILURE
+                "Cascade recalculations have not been initiated yet",
+                StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
             );
         }
+
+        // Check if all cascade accruals are in terminal states
+        long totalCascadeAccruals = cascadeAccruals.size();
+        long settledCascadeAccruals = cascadeAccruals.stream()
+            .filter(a -> TERMINAL_STATES.contains(AccrualState.valueOf(a.getState())))
+            .count();
+
+        if (settledCascadeAccruals < totalCascadeAccruals) {
+            long pendingCascadeAccruals = totalCascadeAccruals - settledCascadeAccruals;
+            logger.debug("Batch {} has {} pending cascade accruals out of {} total",
+                batchId, pendingCascadeAccruals, totalCascadeAccruals);
+            return EvaluationOutcome.fail(
+                String.format("%d of %d cascade accruals are still processing",
+                    pendingCascadeAccruals, totalCascadeAccruals),
+                StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
+            );
+        }
+
+        logger.info("All {} cascade accruals for batch {} are settled", totalCascadeAccruals, batchId);
+        return EvaluationOutcome.success();
     }
 
 }

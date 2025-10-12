@@ -1,15 +1,14 @@
 package com.java_template.application.criterion.accrual;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java_template.application.entity.accrual.version_1.Accrual;
 import com.java_template.application.entity.accrual.version_1.AccrualState;
-import com.java_template.application.entity.loan.version_1.Loan;
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.serializer.*;
 import com.java_template.common.service.EntityService;
 import com.java_template.common.workflow.CyodaCriterion;
 import com.java_template.common.workflow.CyodaEventContext;
 import com.java_template.common.workflow.OperationSpecification;
+import org.cyoda.cloud.api.event.common.EntityChangeMeta;
 import org.cyoda.cloud.api.event.common.ModelSpec;
 import org.cyoda.cloud.api.event.processing.EntityCriteriaCalculationRequest;
 import org.cyoda.cloud.api.event.processing.EntityCriteriaCalculationResponse;
@@ -18,16 +17,24 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.Objects;
+import java.util.Date;
+import java.util.List;
 
 /**
- * Criterion to determine if a POSTED accrual requires rebooking due to underlying data changes.
+ * Criterion to determine if a POSTED accrual requires rebooking due to business data changes.
+ *
+ * This criterion uses a generic approach that compares the current version of the accrual
+ * with its prior version to detect material changes in business data fields.
  *
  * A rebook is required when:
  * - The accrual is in POSTED state
- * - Underlying loan data has changed (principal, APR, day count convention)
- * - Recalculating the accrual would yield a different interest amount
- * - The delta is non-zero (material difference)
+ * - The accrual has been posted before (has prior versions in transaction history)
+ * - Business data fields have changed materially between versions (e.g., principalSnapshot, APR)
+ * - The delta exceeds the materiality threshold
+ *
+ * The criterion prevents rebooking in these cases:
+ * - First-time posting (no prior versions exist)
+ * - Replacement accruals (those created during a rebook process, identified by supersedesAccrualId)
  *
  * This criterion triggers the supersedence workflow where:
  * 1. The current accrual transitions to SUPERSEDED state
@@ -42,8 +49,6 @@ public class RequiresRebookCriterion implements CyodaCriterion {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final CriterionSerializer serializer;
     private final EntityService entityService;
-    private final String className = this.getClass().getSimpleName();
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // Threshold for materiality - differences below this are ignored
     private static final BigDecimal MATERIALITY_THRESHOLD = new BigDecimal("0.01");
@@ -95,81 +100,78 @@ public class RequiresRebookCriterion implements CyodaCriterion {
             );
         }
 
-        String loanId = accrual.getLoanId();
-        BigDecimal currentInterestAmount = accrual.getInterestAmount();
-
-        // Check required fields
-        if (loanId == null || loanId.trim().isEmpty()) {
-            logger.warn("LoanId is null or empty for accrual: {}", accrual.getAccrualId());
-            return EvaluationOutcome.fail("LoanId is required", StandardEvalReasonCategories.STRUCTURAL_FAILURE);
-        }
-
-        if (currentInterestAmount == null) {
-            logger.warn("InterestAmount is null for accrual: {}", accrual.getAccrualId());
-            return EvaluationOutcome.fail("InterestAmount is required", StandardEvalReasonCategories.STRUCTURAL_FAILURE);
-        }
-
-        // Retrieve current loan data
-        ModelSpec loanModelSpec = new ModelSpec()
-            .withName(Loan.ENTITY_NAME)
-            .withVersion(Loan.ENTITY_VERSION);
-
-        EntityWithMetadata<Loan> loanWithMetadata;
-        try {
-            loanWithMetadata = entityService.findByBusinessId(
-                loanModelSpec,
-                loanId,
-                "loanId",
-                Loan.class
-            );
-        } catch (Exception e) {
-            logger.error("Error retrieving loan {} for accrual {}: {}", loanId, accrual.getAccrualId(), e.getMessage());
+        // Don't rebook replacement accruals (those created during a rebook process)
+        // This prevents infinite rebook loops
+        if (accrual.getSupersedesAccrualId() != null && !accrual.getSupersedesAccrualId().trim().isEmpty()) {
+            logger.debug("Accrual {} is a replacement accrual (supersedes: {}), rebook not applicable",
+                accrual.getAccrualId(), accrual.getSupersedesAccrualId());
             return EvaluationOutcome.fail(
-                String.format("Error retrieving loan %s: %s", loanId, e.getMessage()),
-                StandardEvalReasonCategories.DATA_QUALITY_FAILURE
+                String.format("Accrual is a replacement accrual (supersedes: %s)", accrual.getSupersedesAccrualId()),
+                StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
             );
         }
 
-        if (loanWithMetadata == null) {
-            logger.warn("Loan {} not found for accrual: {}", loanId, accrual.getAccrualId());
+        // Get entity change history to detect if this is first-time posting
+        java.util.UUID technicalId = context.entityWithMetadata().metadata().getId();
+        List<EntityChangeMeta> changeHistory = entityService.getEntityChangesMetadata(technicalId);
+
+        // If there's only one change (CREATE), this is first-time posting - don't rebook
+        if (changeHistory == null || changeHistory.size() <= 1) {
+            logger.debug("Accrual {} has no prior versions (first-time posting), rebook not applicable",
+                accrual.getAccrualId());
             return EvaluationOutcome.fail(
-                String.format("Loan %s not found", loanId),
-                StandardEvalReasonCategories.DATA_QUALITY_FAILURE
+                "Accrual has no prior versions (first-time posting)",
+                StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
             );
         }
 
-        Loan loan = loanWithMetadata.entity();
+        // Get the prior version of the accrual to compare business data
+        // The second-to-last change represents the prior version
+        EntityChangeMeta priorChange = changeHistory.get(changeHistory.size() - 2);
+        Date priorPointInTime = priorChange.getTimeOfChange();
 
-        // TODO: In production, this would:
-        // 1. Recalculate the interest amount using current loan data
-        // 2. Compare with the posted interest amount
-        // 3. Check if the delta exceeds the materiality threshold
+        ModelSpec accrualModelSpec = new ModelSpec()
+            .withName(Accrual.ENTITY_NAME)
+            .withVersion(Accrual.ENTITY_VERSION);
 
-        // For now, we perform a simplified check
-        // Assume rebook is required if principal or APR has changed significantly
+        EntityWithMetadata<Accrual> priorAccrualWithMetadata = entityService.getById(
+            technicalId,
+            accrualModelSpec,
+            Accrual.class,
+            priorPointInTime
+        );
 
+        if (priorAccrualWithMetadata == null) {
+            throw new IllegalStateException(String.format("Prior version of accrual %s not found at %s",
+                accrual.getAccrualId(), priorPointInTime));
+        }
+
+        Accrual priorAccrual = priorAccrualWithMetadata.entity();
+
+        // Compare business data between current and prior versions
+        // Check if principal snapshot has changed materially
         BigDecimal currentPrincipal = accrual.getPrincipalSnapshot() != null ?
             accrual.getPrincipalSnapshot().getAmount() : BigDecimal.ZERO;
-        BigDecimal loanPrincipal = loan.getOutstandingPrincipal() != null ?
-            loan.getOutstandingPrincipal() : loan.getPrincipalAmount();
+        BigDecimal priorPrincipal = priorAccrual.getPrincipalSnapshot() != null ?
+            priorAccrual.getPrincipalSnapshot().getAmount() : BigDecimal.ZERO;
 
-        // Check if principal has changed
-        if (loanPrincipal != null && currentPrincipal.compareTo(loanPrincipal) != 0) {
-            BigDecimal principalDelta = loanPrincipal.subtract(currentPrincipal).abs();
+        if (currentPrincipal.compareTo(priorPrincipal) != 0) {
+            BigDecimal principalDelta = currentPrincipal.subtract(priorPrincipal).abs();
             if (principalDelta.compareTo(MATERIALITY_THRESHOLD) > 0) {
-                logger.info("Rebook required for accrual {}: principal changed from {} to {}",
-                    accrual.getAccrualId(), currentPrincipal, loanPrincipal);
+                logger.info("Rebook required for accrual {}: principal snapshot changed from {} to {}",
+                    accrual.getAccrualId(), priorPrincipal, currentPrincipal);
                 return EvaluationOutcome.success();
             }
         }
 
         // TODO: Add APR change detection
         // TODO: Add day count convention change detection
-        // TODO: Perform actual interest recalculation and comparison
+        // TODO: Add other business field comparisons as needed
 
-        logger.debug("No material changes detected for accrual {}, rebook not required", accrual.getAccrualId());
+        logger.debug("No material changes detected in business data for accrual {}, rebook not required",
+            accrual.getAccrualId());
         return EvaluationOutcome.fail(
-            "No material changes detected, rebook not required",
+            "No material changes detected in business data",
             StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
         );
     }

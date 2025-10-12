@@ -113,17 +113,9 @@ public class NotDuplicateAccrualCriterion implements CyodaCriterion {
             .withOperator(GroupCondition.Operator.AND)
             .withConditions(List.of(loanIdCondition, asOfDateCondition));
 
-        List<EntityWithMetadata<Accrual>> existingAccruals;
-        try {
-            existingAccruals = entityService.search(accrualModelSpec, searchCondition, Accrual.class);
-        } catch (Exception e) {
-            logger.error("Error searching for existing accruals for loan {} and date {}: {}",
-                loanId, asOfDate, e.getMessage());
-            return EvaluationOutcome.fail(
-                String.format("Error searching for existing accruals: %s", e.getMessage()),
-                StandardEvalReasonCategories.DATA_QUALITY_FAILURE
-            );
-        }
+        List<EntityWithMetadata<Accrual>> existingAccruals = entityService.search(
+            accrualModelSpec, searchCondition, Accrual.class
+        );
 
         // Filter out the current accrual and terminal states
         for (EntityWithMetadata<Accrual> existingAccrualWithMetadata : existingAccruals) {

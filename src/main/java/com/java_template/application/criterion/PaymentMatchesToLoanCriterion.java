@@ -95,31 +95,26 @@ public class PaymentMatchesToLoanCriterion implements CyodaCriterion {
     }
 
     private Loan getLoanForPayment(String loanId) {
-        try {
-            ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
-            ObjectMapper objectMapper = new ObjectMapper();
+        ModelSpec modelSpec = new ModelSpec().withName(Loan.ENTITY_NAME).withVersion(Loan.ENTITY_VERSION);
+        ObjectMapper objectMapper = new ObjectMapper();
 
-            SimpleCondition condition = new SimpleCondition()
-                    .withJsonPath("$.loanId")
-                    .withOperation(Operation.EQUALS)
-                    .withValue(objectMapper.valueToTree(loanId));
+        SimpleCondition condition = new SimpleCondition()
+                .withJsonPath("$.loanId")
+                .withOperation(Operation.EQUALS)
+                .withValue(objectMapper.valueToTree(loanId));
 
-            GroupCondition groupCondition = new GroupCondition()
-                    .withOperator(GroupCondition.Operator.AND)
-                    .withConditions(List.of(condition));
+        GroupCondition groupCondition = new GroupCondition()
+                .withOperator(GroupCondition.Operator.AND)
+                .withConditions(List.of(condition));
 
-            List<EntityWithMetadata<Loan>> loans = entityService.search(modelSpec, groupCondition, Loan.class);
+        List<EntityWithMetadata<Loan>> loans = entityService.search(modelSpec, groupCondition, Loan.class);
 
-            if (loans.isEmpty()) {
-                logger.debug("Loan not found: {}", loanId);
-                return null;
-            }
-
-            return loans.getFirst().entity();
-        } catch (Exception e) {
-            logger.error("Error searching for loan {}: {}", loanId, e.getMessage(), e);
+        if (loans.isEmpty()) {
+            logger.debug("Loan not found: {}", loanId);
             return null;
         }
+
+        return loans.getFirst().entity();
     }
 }
 

@@ -94,21 +94,12 @@ public class LoanActiveOnDateCriterion implements CyodaCriterion {
             .withName(Loan.ENTITY_NAME)
             .withVersion(Loan.ENTITY_VERSION);
 
-        EntityWithMetadata<Loan> loanWithMetadata;
-        try {
-            loanWithMetadata = entityService.findByBusinessId(
-                loanModelSpec,
-                loanId,
-                "loanId",
-                Loan.class
-            );
-        } catch (Exception e) {
-            logger.error("Error retrieving loan {} for accrual {}: {}", loanId, accrual.getAccrualId(), e.getMessage());
-            return EvaluationOutcome.fail(
-                String.format("Error retrieving loan %s: %s", loanId, e.getMessage()),
-                StandardEvalReasonCategories.DATA_QUALITY_FAILURE
-            );
-        }
+        EntityWithMetadata<Loan> loanWithMetadata = entityService.findByBusinessId(
+            loanModelSpec,
+            loanId,
+            "loanId",
+            Loan.class
+        );
 
         if (loanWithMetadata == null) {
             logger.warn("Loan {} not found for accrual: {}", loanId, accrual.getAccrualId());

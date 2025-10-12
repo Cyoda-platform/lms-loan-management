@@ -88,41 +88,32 @@ public class NoActiveBatchForDateCriterion implements CyodaCriterion {
             return EvaluationOutcome.fail("AsOfDate is required", StandardEvalReasonCategories.STRUCTURAL_FAILURE);
         }
 
-        try {
-            // Query for all batches with the same asOfDate
-            ModelSpec batchModelSpec = new ModelSpec()
-                .withName(EODAccrualBatch.ENTITY_NAME)
-                .withVersion(EODAccrualBatch.ENTITY_VERSION);
+        // Query for all batches with the same asOfDate
+        ModelSpec batchModelSpec = new ModelSpec()
+            .withName(EODAccrualBatch.ENTITY_NAME)
+            .withVersion(EODAccrualBatch.ENTITY_VERSION);
 
-            List<EntityWithMetadata<EODAccrualBatch>> existingBatchesWithMetadata =
-                entityService.findAll(batchModelSpec, EODAccrualBatch.class);
+        List<EntityWithMetadata<EODAccrualBatch>> existingBatchesWithMetadata =
+            entityService.findAll(batchModelSpec, EODAccrualBatch.class);
 
-            // Filter for batches with same asOfDate and non-terminal states
-            long activeBatchCount = existingBatchesWithMetadata.stream()
-                .filter(b -> asOfDate.equals(b.entity().getAsOfDate()))
-                .filter(b -> !batch.getBatchId().equals(b.entity().getBatchId())) // Exclude current batch
-                .filter(b -> !TERMINAL_STATES.contains(EODAccrualBatchState.valueOf(b.getState())))
-                .count();
+        // Filter for batches with same asOfDate and non-terminal states
+        long activeBatchCount = existingBatchesWithMetadata.stream()
+            .filter(b -> asOfDate.equals(b.entity().getAsOfDate()))
+            .filter(b -> !batch.getBatchId().equals(b.entity().getBatchId())) // Exclude current batch
+            .filter(b -> !TERMINAL_STATES.contains(EODAccrualBatchState.valueOf(b.getState())))
+            .count();
 
-            if (activeBatchCount > 0) {
-                logger.warn("Found {} active batch(es) for asOfDate {} (excluding current batch {})",
-                    activeBatchCount, asOfDate, batch.getBatchId());
-                return EvaluationOutcome.fail(
-                    String.format("Another active batch already exists for asOfDate %s", asOfDate),
-                    StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
-                );
-            }
-
-            logger.debug("No active batches found for asOfDate {} (batch: {})", asOfDate, batch.getBatchId());
-            return EvaluationOutcome.success();
-
-        } catch (Exception e) {
-            logger.error("Error querying for existing batches: {}", e.getMessage(), e);
+        if (activeBatchCount > 0) {
+            logger.warn("Found {} active batch(es) for asOfDate {} (excluding current batch {})",
+                activeBatchCount, asOfDate, batch.getBatchId());
             return EvaluationOutcome.fail(
-                "Failed to check for existing batches: " + e.getMessage(),
-                StandardEvalReasonCategories.DATA_QUALITY_FAILURE
+                String.format("Another active batch already exists for asOfDate %s", asOfDate),
+                StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
             );
         }
+
+        logger.debug("No active batches found for asOfDate {} (batch: {})", asOfDate, batch.getBatchId());
+        return EvaluationOutcome.success();
     }
 }
 

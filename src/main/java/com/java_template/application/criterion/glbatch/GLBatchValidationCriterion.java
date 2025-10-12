@@ -111,26 +111,19 @@ public class GLBatchValidationCriterion implements CyodaCriterion {
      * @return true if period already processed, false otherwise
      */
     private boolean isPeriodAlreadyProcessed(String period, String currentBatchId) {
-        try {
-            ModelSpec batchModelSpec = new ModelSpec()
-                .withName(GLBatch.ENTITY_NAME)
-                .withVersion(GLBatch.ENTITY_VERSION);
+        ModelSpec batchModelSpec = new ModelSpec()
+            .withName(GLBatch.ENTITY_NAME)
+            .withVersion(GLBatch.ENTITY_VERSION);
 
-            // Query all GL batches
-            List<EntityWithMetadata<GLBatch>> batches = 
-                entityService.findAll(batchModelSpec, GLBatch.class);
+        // Query all GL batches
+        List<EntityWithMetadata<GLBatch>> batches =
+            entityService.findAll(batchModelSpec, GLBatch.class);
 
-            // Check if any batch (other than current) has the same period
-            return batches.stream()
-                .map(EntityWithMetadata::entity)
-                .filter(batch -> !batch.getBatchId().equals(currentBatchId))
-                .anyMatch(batch -> period.equals(batch.getPeriod()));
-
-        } catch (Exception e) {
-            logger.error("Error querying GL batches for period {}: {}", period, e.getMessage(), e);
-            // In case of error, allow the batch to proceed (fail open)
-            return false;
-        }
+        // Check if any batch (other than current) has the same period
+        return batches.stream()
+            .map(EntityWithMetadata::entity)
+            .filter(batch -> !batch.getBatchId().equals(currentBatchId))
+            .anyMatch(batch -> period.equals(batch.getPeriod()));
     }
 }
 
