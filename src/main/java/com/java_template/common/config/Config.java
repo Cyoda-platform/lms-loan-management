@@ -20,7 +20,7 @@ public class Config {
 
     // Thread pool configurations for different event types
     public static final int PROCESSOR_THREAD_POOL = Integer.parseInt(getEnv("PROCESSOR_THREAD_POOL", "20"));
-    public static final int CRITERIA_THREAD_POOL = Integer.parseInt(getEnv("CRITERIA_THREAD_POOL", "5"));
+    public static final int CRITERIA_THREAD_POOL = Integer.parseInt(getEnv("CRITERIA_THREAD_POOL", "20"));
     public static final int CONTROL_THREAD_POOL = Integer.parseInt(getEnv("CONTROL_THREAD_POOL", "3"));
 
     public static final int HANDSHAKE_TIMEOUT_MS = Integer.parseInt(getEnv("HANDSHAKE_TIMEOUT_MS", "5000"));
