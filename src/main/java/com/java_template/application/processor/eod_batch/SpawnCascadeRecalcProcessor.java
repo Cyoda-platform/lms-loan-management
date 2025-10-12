@@ -3,6 +3,7 @@ package com.java_template.application.processor.eod_batch;
 import com.java_template.application.entity.accrual.version_1.Accrual;
 import com.java_template.application.entity.accrual.version_1.BatchMode;
 import com.java_template.application.entity.accrual.version_1.EODAccrualBatch;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.serializer.ProcessorSerializer;
 import com.java_template.common.serializer.SerializerFactory;
@@ -11,6 +12,9 @@ import com.java_template.common.workflow.CyodaEventContext;
 import com.java_template.common.workflow.CyodaProcessor;
 import com.java_template.common.workflow.OperationSpecification;
 import org.cyoda.cloud.api.event.common.ModelSpec;
+import org.cyoda.cloud.api.event.common.condition.GroupCondition;
+import org.cyoda.cloud.api.event.common.condition.Operation;
+import org.cyoda.cloud.api.event.common.condition.SimpleCondition;
 import org.cyoda.cloud.api.event.processing.EntityProcessorCalculationRequest;
 import org.cyoda.cloud.api.event.processing.EntityProcessorCalculationResponse;
 import org.slf4j.Logger;
@@ -46,6 +50,7 @@ public class SpawnCascadeRecalcProcessor implements CyodaProcessor {
     private final String className = this.getClass().getSimpleName();
     private final ProcessorSerializer serializer;
     private final EntityService entityService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public SpawnCascadeRecalcProcessor(SerializerFactory serializerFactory, EntityService entityService) {
         this.serializer = serializerFactory.getDefaultProcessorSerializer();
@@ -151,16 +156,23 @@ public class SpawnCascadeRecalcProcessor implements CyodaProcessor {
             .withName(Accrual.ENTITY_NAME)
             .withVersion(Accrual.ENTITY_VERSION);
 
-        // Query all accruals with this runId
+        // Search for accruals with this runId
+        SimpleCondition runIdCondition = new SimpleCondition()
+            .withJsonPath("$.runId")
+            .withOperation(Operation.EQUALS)
+            .withValue(objectMapper.valueToTree(runId.toString()));
+
+        GroupCondition searchCondition = new GroupCondition()
+            .withOperator(GroupCondition.Operator.AND)
+            .withConditions(List.of(runIdCondition));
+
         List<EntityWithMetadata<Accrual>> accrualsWithMetadata =
-            entityService.findAll(accrualModelSpec, Accrual.class);
+            entityService.search(accrualModelSpec, searchCondition, Accrual.class);
 
         Set<String> affectedLoanIds = new HashSet<>();
         for (EntityWithMetadata<Accrual> accrualWithMetadata : accrualsWithMetadata) {
             Accrual accrual = accrualWithMetadata.entity();
-            if (runId.toString().equals(accrual.getRunId())) {
-                affectedLoanIds.add(accrual.getLoanId());
-            }
+            affectedLoanIds.add(accrual.getLoanId());
         }
 
         return affectedLoanIds;

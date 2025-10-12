@@ -9,6 +9,9 @@ import com.java_template.application.entity.accrual.version_1.JournalEntryDirect
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.service.EntityService;
 import org.cyoda.cloud.api.event.common.ModelSpec;
+import org.cyoda.cloud.api.event.common.condition.GroupCondition;
+import org.cyoda.cloud.api.event.common.condition.Operation;
+import org.cyoda.cloud.api.event.common.condition.SimpleCondition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -184,18 +187,22 @@ public class GLAggregationService {
                 .withVersion(Accrual.ENTITY_VERSION);
 
         try {
-            // Query all accruals (in production, this should be filtered by date range)
-            List<EntityWithMetadata<Accrual>> allAccruals = entityService.findAll(modelSpec, Accrual.class);
+            // Search for accruals within the date range using database query
+            SimpleCondition startDateCondition = new SimpleCondition()
+                    .withJsonPath("$.asOfDate")
+                    .withOperation(Operation.GREATER_OR_EQUAL)
+                    .withValue(objectMapper.valueToTree(startDate.toString()));
 
-            // Filter by date range
-            return allAccruals.stream()
-                    .filter(a -> {
-                        LocalDate asOfDate = a.entity().getAsOfDate();
-                        return asOfDate != null &&
-                               !asOfDate.isBefore(startDate) &&
-                               !asOfDate.isAfter(endDate);
-                    })
-                    .collect(Collectors.toList());
+            SimpleCondition endDateCondition = new SimpleCondition()
+                    .withJsonPath("$.asOfDate")
+                    .withOperation(Operation.LESS_OR_EQUAL)
+                    .withValue(objectMapper.valueToTree(endDate.toString()));
+
+            GroupCondition searchCondition = new GroupCondition()
+                    .withOperator(GroupCondition.Operator.AND)
+                    .withConditions(List.of(startDateCondition, endDateCondition));
+
+            return entityService.search(modelSpec, searchCondition, Accrual.class);
 
         } catch (Exception e) {
             logger.error("Error querying accruals for date range {} to {}", startDate, endDate, e);

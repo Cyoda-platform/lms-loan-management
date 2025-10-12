@@ -8,6 +8,7 @@ import com.java_template.common.workflow.CyodaEntity;
 import org.cyoda.cloud.api.event.common.EntityChangeMeta;
 import org.cyoda.cloud.api.event.common.ModelSpec;
 import org.cyoda.cloud.api.event.common.condition.GroupCondition;
+import org.cyoda.cloud.api.event.common.condition.LifecycleCondition;
 import org.cyoda.cloud.api.event.common.condition.Operation;
 import org.cyoda.cloud.api.event.common.condition.QueryCondition;
 import org.cyoda.cloud.api.event.common.condition.SimpleCondition;
@@ -322,28 +323,26 @@ public class EntityCrudOperations<T extends CyodaEntity> {
                 }
             }
 
-            if (conditions.isEmpty() && (stateFilter == null || stateFilter.trim().isEmpty())) {
+            // Add state filter as LifecycleCondition if provided
+            if (stateFilter != null && !stateFilter.trim().isEmpty()) {
+                LifecycleCondition stateCondition = new LifecycleCondition()
+                        .withField("state")
+                        .withOperation(Operation.EQUALS)
+                        .withValue(objectMapper.valueToTree(stateFilter));
+                conditions.add(stateCondition);
+            }
+
+            if (conditions.isEmpty()) {
                 // Use paginated findAll when no filters
                 return ResponseEntity.ok(entityService.findAll(
                         modelSpec(), pageable, entityClass, pointInTimeDate));
             } else {
                 // For filtered results, get all matching results then manually paginate
-                List<EntityWithMetadata<T>> entities;
-                if (conditions.isEmpty()) {
-                    entities = entityService.findAll(modelSpec(), entityClass, pointInTimeDate);
-                } else {
-                    GroupCondition groupCondition = new GroupCondition()
-                            .withOperator(GroupCondition.Operator.AND)
-                            .withConditions(conditions);
-                    entities = entityService.search(modelSpec(), groupCondition, entityClass, pointInTimeDate);
-                }
-
-                // Filter by state if provided (state is in metadata, not entity)
-                if (stateFilter != null && !stateFilter.trim().isEmpty()) {
-                    entities = entities.stream()
-                            .filter(e -> stateFilter.equals(e.metadata().getState()))
-                            .toList();
-                }
+                GroupCondition groupCondition = new GroupCondition()
+                        .withOperator(GroupCondition.Operator.AND)
+                        .withConditions(conditions);
+                List<EntityWithMetadata<T>> entities = entityService.search(
+                        modelSpec(), groupCondition, entityClass, pointInTimeDate);
 
                 // Manually paginate the filtered results
                 int start = (int) pageable.getOffset();

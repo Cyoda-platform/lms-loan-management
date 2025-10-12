@@ -123,8 +123,7 @@ Date: 2025‑10‑06
           "next": "CALCULATED",
           "manual": false,
           "processors": [
-            { "name": "DeriveDayCountFraction", "executionMode": "SYNC", "config": { "attachEntity": true } },
-            { "name": "CalculateAccrualAmount", "executionMode": "ASYNC_NEW_TX", "config": { "attachEntity": true, "calculationNodesTags": "accruals" } }
+            { "name": "CalculateAccrual", "executionMode": "SYNC", "config": { "attachEntity": true, "calculationNodesTags": "accruals" } }
           ]
         },
         { "name": "REJECT", "next": "FAILED", "manual": true }
@@ -286,8 +285,7 @@ Date: 2025‑10‑06
 
 | Name | Purpose | Mode | Node Tag |
 |---|---|---|---|
-| `DeriveDayCountFraction` | Compute day‑count per product convention | SYNC | — |
-| `CalculateAccrualAmount` | `interestAmount = principal × APR × DayCountFraction` | ASYNC_NEW_TX | accruals |
+| `CalculateAccrual` | Compute day‑count fraction and calculate `interestAmount = principal × APR × DayCountFraction` | SYNC | accruals |
 | `WriteAccrualJournalEntries` | Write **embedded** DR/CR entries to `$.journalEntries` | ASYNC_NEW_TX | ledger |
 | `UpdateLoanAccruedInterest` | Update loan’s accruedInterest from net delta of entries | ASYNC_NEW_TX | ledger |
 | `ReversePriorJournals` | Append equal‑and‑opposite `REVERSAL` entries | ASYNC_NEW_TX | ledger |

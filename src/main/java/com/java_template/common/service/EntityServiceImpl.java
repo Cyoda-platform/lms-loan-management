@@ -490,21 +490,16 @@ public class EntityServiceImpl implements EntityService {
 
     @NotNull
     private EntityChangeMeta getLatestChange(List<EntityChangeMeta> changes) {
-        EntityChangeMeta lastChange = changes.getFirst();
-        UUID lastTransactionId = lastChange.getTransactionId();
-
-        if (lastTransactionId != null) {
-            for (int i = 0; i < changes.size() - 1; i++) {
-                UUID currentId = changes.get(i).getTransactionId();
-                if (currentId != null && currentId.compareTo(lastTransactionId) > 0) {
-                    logger.error("Sanity check failed: Last change transactionId {} is not the maximum. Found {} at index {}",
-                            lastTransactionId, currentId, i);
-                    throw new IllegalStateException("Changes list is not properly sorted by transactionId");
-                }
-            }
-        }
-
-        return lastChange;
+        return changes.stream()
+                .max((c1, c2) -> {
+                    UUID id1 = c1.getTransactionId();
+                    UUID id2 = c2.getTransactionId();
+                    if (id1 == null && id2 == null) return 0;
+                    if (id1 == null) return -1;
+                    if (id2 == null) return 1;
+                    return id1.compareTo(id2);
+                })
+                .orElseGet(changes::getFirst);
     }
 
     @Override

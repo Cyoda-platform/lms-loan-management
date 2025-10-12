@@ -88,7 +88,7 @@
               "executionMode": "ASYNC_NEW_TX",
               "config": {
                 "attachEntity": true,
-                "calculationNodesTags": "accruals",
+                "calculationNodesTags": "cyoda_application",
                 "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
@@ -119,7 +119,7 @@
               "executionMode": "ASYNC_NEW_TX",
               "config": {
                 "attachEntity": true,
-                "calculationNodesTags": "accruals",
+                "calculationNodesTags": "cyoda_application",
                 "responseTimeoutMs": 200000,
                 "retryPolicy": "FIXED"
               }
@@ -173,7 +173,7 @@
               "executionMode": "ASYNC_NEW_TX",
               "config": {
                 "attachEntity": true,
-                "calculationNodesTags": "recalc",
+                "calculationNodesTags": "cyoda_application",
                 "responseTimeoutMs": 200000,
                 "retryPolicy": "FIXED"
               }
@@ -244,7 +244,7 @@
               "executionMode": "ASYNC_NEW_TX",
               "config": {
                 "attachEntity": true,
-                "calculationNodesTags": "ledger",
+                "calculationNodesTags": "cyoda_application",
                 "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }

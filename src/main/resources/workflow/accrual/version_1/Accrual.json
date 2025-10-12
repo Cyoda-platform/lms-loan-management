@@ -84,21 +84,11 @@
           "manual": false,
           "processors": [
             {
-              "name": "DeriveDayCountFraction",
+              "name": "CalculateAccrual",
               "executionMode": "SYNC",
               "config": {
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 20000,
-                "retryPolicy": "FIXED"
-              }
-            },
-            {
-              "name": "CalculateAccrualAmount",
-              "executionMode": "SYNC",
-              "config": {
-                "attachEntity": true,
-                "calculationNodesTags": "accruals",
                 "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
@@ -187,7 +177,7 @@
               "config": {
                 "attachEntity": true,
                 "targetPath": "$.journalEntries",
-                "calculationNodesTags": "accruals",
+                "calculationNodesTags": "cyoda_application",
                 "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
@@ -197,7 +187,7 @@
               "executionMode": "ASYNC_NEW_TX",
               "config": {
                 "attachEntity": true,
-                "calculationNodesTags": "accruals",
+                "calculationNodesTags": "cyoda_application",
                 "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }

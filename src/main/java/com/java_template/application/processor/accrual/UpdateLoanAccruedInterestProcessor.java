@@ -146,7 +146,7 @@ public class UpdateLoanAccruedInterestProcessor implements CyodaProcessor {
 
         // Save the updated loan entity (NOT the current accrual entity)
         try {
-            entityService.update(loanWithMetadata.metadata().getId(), loan, "UPDATE_ACCRUED_INTEREST");
+            entityService.update(loanWithMetadata.metadata().getId(), loan, null);
             logger.info("Loan {} accrued interest updated: {} -> {} (delta: {})",
                 loanId, currentAccruedInterest, newAccruedInterest, netDelta);
         } catch (Exception e) {

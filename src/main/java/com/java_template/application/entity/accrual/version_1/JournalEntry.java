@@ -1,5 +1,6 @@
 package com.java_template.application.entity.accrual.version_1;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -75,14 +76,15 @@ public class JournalEntry {
     
     /**
      * Validates this journal entry.
-     * 
+     *
      * Business rules:
      * - REVERSAL entries must have adjustsEntryId set
      * - Amount must be positive
      * - Required fields must be present
-     * 
+     *
      * @return true if valid, false otherwise
      */
+    @JsonIgnore
     public boolean isValid() {
         // Check required fields
         if (entryId == null || account == null || direction == null || 

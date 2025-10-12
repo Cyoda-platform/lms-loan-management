@@ -2,12 +2,15 @@ package com.java_template.application.processor.accrual;
 
 import com.java_template.application.entity.accrual.version_1.Accrual;
 import com.java_template.application.entity.accrual.version_1.DayCountConvention;
+import com.java_template.application.entity.loan.version_1.Loan;
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.serializer.ProcessorSerializer;
 import com.java_template.common.serializer.SerializerFactory;
+import com.java_template.common.service.EntityService;
 import com.java_template.common.workflow.CyodaEventContext;
 import com.java_template.common.workflow.CyodaProcessor;
 import com.java_template.common.workflow.OperationSpecification;
+import org.cyoda.cloud.api.event.common.ModelSpec;
 import org.cyoda.cloud.api.event.processing.EntityProcessorCalculationRequest;
 import org.cyoda.cloud.api.event.processing.EntityProcessorCalculationResponse;
 import org.slf4j.Logger;
@@ -20,44 +23,54 @@ import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 
 /**
- * Processor to compute day-count fraction per product convention.
+ * Consolidated processor to compute day-count fraction and calculate accrual interest amount.
+ *
+ * This processor combines the functionality of:
+ * - DeriveDayCountFractionProcessor: Computes day-count fraction per product convention
+ * - CalculateAccrualAmountProcessor: Calculates interest amount using the formula
  *
  * Supports three day count conventions:
  * - ACT_360: Actual days / 360
  * - ACT_365: Actual days / 365
  * - THIRTY_360: 30/360 (assumes 30 days per month, 360 days per year)
  *
- * The day count fraction is used in interest calculation:
- * interestAmount = principal × APR × dayCountFraction
+ * Formula: interestAmount = principal × APR × dayCountFraction
  *
- * This processor runs in SYNC mode and updates the accrual entity with the calculated fraction.
+ * This processor runs in SYNC mode and updates the accrual entity with both
+ * the calculated fraction and the interest amount.
  */
 @Component
-public class DeriveDayCountFractionProcessor implements CyodaProcessor {
+public class CalculateAccrualProcessor implements CyodaProcessor {
 
-    private static final Logger logger = LoggerFactory.getLogger(DeriveDayCountFractionProcessor.class);
+    private static final Logger logger = LoggerFactory.getLogger(CalculateAccrualProcessor.class);
     private final String className = this.getClass().getSimpleName();
     private final ProcessorSerializer serializer;
+    private final EntityService entityService;
 
-    public DeriveDayCountFractionProcessor(SerializerFactory serializerFactory) {
+    // Precision for monetary calculations (2 decimal places for most currencies)
+    private static final int MONETARY_SCALE = 2;
+    private static final RoundingMode MONETARY_ROUNDING = RoundingMode.HALF_UP;
+
+    public CalculateAccrualProcessor(SerializerFactory serializerFactory, EntityService entityService) {
         this.serializer = serializerFactory.getDefaultProcessorSerializer();
+        this.entityService = entityService;
     }
 
     @Override
     public EntityProcessorCalculationResponse process(CyodaEventContext<EntityProcessorCalculationRequest> context) {
         EntityProcessorCalculationRequest request = context.getEvent();
-        logger.info("Processing DeriveDayCountFraction for request: {}", request.getId());
+        logger.info("Processing CalculateAccrual for request: {}", request.getId());
 
         return serializer.withRequest(request)
             .toEntityWithMetadata(Accrual.class)
             .validate(this::isValidEntityWithMetadata, "Invalid accrual entity")
-            .map(this::calculateDayCountFraction)
+            .map(this::calculateDayCountFractionAndInterest)
             .complete();
     }
 
     @Override
     public boolean supports(OperationSpecification modelSpec) {
-        return "DeriveDayCountFraction".equalsIgnoreCase(modelSpec.operationName());
+        return "CalculateAccrual".equalsIgnoreCase(modelSpec.operationName());
     }
 
     /**
@@ -70,17 +83,18 @@ public class DeriveDayCountFractionProcessor implements CyodaProcessor {
     }
 
     /**
-     * Calculates the day count fraction based on the accrual's day count convention.
+     * Calculates both the day count fraction and the interest amount.
+     * This combines the logic from DeriveDayCountFractionProcessor and CalculateAccrualAmountProcessor.
      */
-    private EntityWithMetadata<Accrual> calculateDayCountFraction(
+    private EntityWithMetadata<Accrual> calculateDayCountFractionAndInterest(
             ProcessorSerializer.ProcessorEntityResponseExecutionContext<Accrual> context) {
 
         EntityWithMetadata<Accrual> entityWithMetadata = context.entityResponse();
         Accrual accrual = entityWithMetadata.entity();
 
-        logger.debug("Calculating day count fraction for accrual: {}", accrual.getAccrualId());
+        logger.debug("Calculating day count fraction and interest amount for accrual: {}", accrual.getAccrualId());
 
-        // Get required fields
+        // Step 1: Calculate day count fraction
         LocalDate asOfDate = accrual.getAsOfDate();
         DayCountConvention convention = accrual.getDayCountConvention();
 
@@ -110,6 +124,43 @@ public class DeriveDayCountFractionProcessor implements CyodaProcessor {
 
         logger.info("Day count fraction calculated for accrual {}: {} (convention: {})",
             accrual.getAccrualId(), dayCountFraction, convention);
+
+        // Step 2: Calculate interest amount
+        BigDecimal principal = accrual.getPrincipalSnapshot() != null ?
+            accrual.getPrincipalSnapshot().getAmount() : null;
+        String loanId = accrual.getLoanId();
+
+        // Validate required fields
+        if (principal == null) {
+            logger.error("Principal is null for accrual: {}", accrual.getAccrualId());
+            throw new IllegalStateException("Principal is required for interest calculation");
+        }
+
+        if (loanId == null || loanId.trim().isEmpty()) {
+            logger.error("LoanId is null or empty for accrual: {}", accrual.getAccrualId());
+            throw new IllegalStateException("LoanId is required to retrieve APR");
+        }
+
+        // Retrieve APR from the loan entity
+        BigDecimal apr = retrieveAprFromLoan(loanId, accrual.getAccrualId());
+
+        // Calculate interest amount: principal × APR × dayCountFraction
+        BigDecimal interestAmount = principal
+            .multiply(apr)
+            .multiply(dayCountFraction)
+            .setScale(MONETARY_SCALE, MONETARY_ROUNDING);
+
+        // Set the calculated amount on the accrual
+        accrual.setInterestAmount(interestAmount);
+
+        logger.info("Interest amount calculated for accrual {}: {} (principal: {}, APR: {}, fraction: {})",
+            accrual.getAccrualId(), interestAmount, principal, apr, dayCountFraction);
+
+        // Log warning if interest amount is zero or negative
+        if (interestAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            logger.warn("Interest amount is zero or negative for accrual {}: {}",
+                accrual.getAccrualId(), interestAmount);
+        }
 
         return entityWithMetadata;
     }
@@ -184,6 +235,45 @@ public class DeriveDayCountFractionProcessor implements CyodaProcessor {
 
         logger.debug("30/360: {} days / 360 = {}", days, fraction);
         return fraction;
+    }
+
+    /**
+     * Retrieves the APR from the loan entity.
+     */
+    private BigDecimal retrieveAprFromLoan(String loanId, String accrualId) {
+        ModelSpec loanModelSpec = new ModelSpec()
+            .withName(Loan.ENTITY_NAME)
+            .withVersion(Loan.ENTITY_VERSION);
+
+        EntityWithMetadata<Loan> loanWithMetadata;
+        try {
+            loanWithMetadata = entityService.findByBusinessId(
+                loanModelSpec,
+                loanId,
+                "loanId",
+                Loan.class
+            );
+        } catch (Exception e) {
+            logger.error("Error retrieving loan {} for accrual {}: {}",
+                loanId, accrualId, e.getMessage());
+            throw new IllegalStateException("Failed to retrieve loan: " + loanId, e);
+        }
+
+        if (loanWithMetadata == null) {
+            logger.error("Loan {} not found for accrual: {}", loanId, accrualId);
+            throw new IllegalStateException("Loan not found: " + loanId);
+        }
+
+        Loan loan = loanWithMetadata.entity();
+        BigDecimal apr = loan.getApr();
+
+        if (apr == null) {
+            logger.error("APR is null for loan {} (accrual: {})", loanId, accrualId);
+            throw new IllegalStateException("APR is required for interest calculation");
+        }
+
+        logger.debug("Retrieved APR {} from loan {} for accrual {}", apr, loanId, accrualId);
+        return apr;
     }
 }
 

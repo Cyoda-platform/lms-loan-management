@@ -3,6 +3,7 @@ package com.java_template.application.criterion.eod_batch;
 import com.java_template.application.entity.accrual.version_1.Accrual;
 import com.java_template.application.entity.accrual.version_1.AccrualState;
 import com.java_template.application.entity.accrual.version_1.EODAccrualBatch;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.serializer.*;
 import com.java_template.common.service.EntityService;
@@ -10,6 +11,9 @@ import com.java_template.common.workflow.CyodaCriterion;
 import com.java_template.common.workflow.CyodaEventContext;
 import com.java_template.common.workflow.OperationSpecification;
 import org.cyoda.cloud.api.event.common.ModelSpec;
+import org.cyoda.cloud.api.event.common.condition.GroupCondition;
+import org.cyoda.cloud.api.event.common.condition.Operation;
+import org.cyoda.cloud.api.event.common.condition.SimpleCondition;
 import org.cyoda.cloud.api.event.processing.EntityCriteriaCalculationRequest;
 import org.cyoda.cloud.api.event.processing.EntityCriteriaCalculationResponse;
 import org.slf4j.Logger;
@@ -40,6 +44,7 @@ public class CascadeSettledCriterion implements CyodaCriterion {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final CriterionSerializer serializer;
     private final EntityService entityService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     private static final Set<AccrualState> TERMINAL_STATES = Set.of(
         AccrualState.POSTED,
@@ -100,22 +105,28 @@ public class CascadeSettledCriterion implements CyodaCriterion {
         }
 
         try {
-            // Query for all accruals
+            // Query for accruals in the cascade date range for this batch
             ModelSpec accrualModelSpec = new ModelSpec()
                 .withName(Accrual.ENTITY_NAME)
                 .withVersion(Accrual.ENTITY_VERSION);
 
-            List<EntityWithMetadata<Accrual>> allAccrualsWithMetadata =
-                entityService.findAll(accrualModelSpec, Accrual.class);
+            // Search for accruals with asOfDate >= cascadeFromDate AND runId = batchId
+            SimpleCondition dateCondition = new SimpleCondition()
+                .withJsonPath("$.asOfDate")
+                .withOperation(Operation.GREATER_OR_EQUAL)
+                .withValue(objectMapper.valueToTree(cascadeFromDate.toString()));
 
-            // Filter for accruals in the cascade date range that are related to this batch
-            // TODO: In production, this should be optimized with a more specific query
-            // For now, we check accruals with asOfDate >= cascadeFromDate
-            List<EntityWithMetadata<Accrual>> cascadeAccruals = allAccrualsWithMetadata.stream()
-                .filter(a -> a.entity().getAsOfDate() != null)
-                .filter(a -> !a.entity().getAsOfDate().isBefore(cascadeFromDate))
-                .filter(a -> batchId.toString().equals(a.entity().getRunId()) || isRelatedToCascade(a.entity(), batchId))
-                .toList();
+            SimpleCondition runIdCondition = new SimpleCondition()
+                .withJsonPath("$.runId")
+                .withOperation(Operation.EQUALS)
+                .withValue(objectMapper.valueToTree(batchId.toString()));
+
+            GroupCondition searchCondition = new GroupCondition()
+                .withOperator(GroupCondition.Operator.AND)
+                .withConditions(List.of(dateCondition, runIdCondition));
+
+            List<EntityWithMetadata<Accrual>> cascadeAccruals =
+                entityService.search(accrualModelSpec, searchCondition, Accrual.class);
 
             if (cascadeAccruals.isEmpty()) {
                 // No cascade accruals found - may still be spawning
@@ -155,20 +166,5 @@ public class CascadeSettledCriterion implements CyodaCriterion {
         }
     }
 
-    /**
-     * Check if an accrual is related to the cascade operation for this batch.
-     *
-     * TODO: In production, this should use a more robust mechanism to track
-     * cascade relationships (e.g., a cascade tracking entity or metadata field).
-     *
-     * @param accrual The accrual to check
-     * @param batchId The batch ID
-     * @return true if the accrual is part of the cascade, false otherwise
-     */
-    private boolean isRelatedToCascade(Accrual accrual, UUID batchId) {
-        // TODO: Implement proper cascade relationship tracking
-        // For now, we use a simple heuristic based on runId
-        return batchId.toString().equals(accrual.getRunId());
-    }
 }
 
