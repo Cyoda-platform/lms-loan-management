@@ -2,6 +2,7 @@ package com.java_template.application.processor.accrual;
 
 import com.java_template.application.entity.accrual.version_1.Accrual;
 import com.java_template.application.entity.accrual.version_1.JournalEntry;
+import com.java_template.application.entity.accrual.version_1.JournalEntryAccount;
 import com.java_template.application.entity.accrual.version_1.JournalEntryDirection;
 import com.java_template.application.entity.accrual.version_1.JournalEntryKind;
 import com.java_template.application.entity.loan.version_1.Loan;
@@ -161,6 +162,9 @@ public class UpdateLoanAccruedInterestProcessor implements CyodaProcessor {
     /**
      * Calculates the net delta from journal entries.
      *
+     * Only processes INTEREST_RECEIVABLE entries, as these represent the loan's accrued interest balance.
+     * INTEREST_INCOME entries are ignored as they represent the income side of the double-entry.
+     *
      * Logic:
      * - ORIGINAL DR entries: Add amount (increases receivable)
      * - ORIGINAL CR entries: Subtract amount (decreases receivable)
@@ -171,6 +175,13 @@ public class UpdateLoanAccruedInterestProcessor implements CyodaProcessor {
         BigDecimal netDelta = BigDecimal.ZERO;
 
         for (JournalEntry entry : journalEntries) {
+            // Only process INTEREST_RECEIVABLE entries
+            if (entry.getAccount() != JournalEntryAccount.INTEREST_RECEIVABLE) {
+                logger.debug("Skipping non-receivable entry: {} (account: {})",
+                    entry.getEntryId(), entry.getAccount());
+                continue;
+            }
+
             BigDecimal amount = entry.getAmount();
             JournalEntryDirection direction = entry.getDirection();
             JournalEntryKind kind = entry.getKind();
