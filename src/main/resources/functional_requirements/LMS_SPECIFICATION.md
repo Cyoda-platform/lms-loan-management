@@ -1,3 +1,4 @@
+<!-- Merged with EoD addendum on 2025-10-13. -->
 
 
 # **Commercial Loan Management System: Full System Specification**
@@ -20,20 +21,46 @@ Defining a clear and explicit scope is critical to ensure a focused development 
 
 The initial release of the LMS will focus exclusively on the servicing of funded, fixed-term commercial loans. The core functional scope includes:
 
-* **Loan Lifecycle Management:** The system will manage the entire post-funding lifecycle of a loan, from the point of funding, through its active servicing period, to its final settlement or scheduled closure.1  
-* **Daily Interest Accrual:** The system will automatically perform daily interest calculations for all active loans. This calculation will be based on the loan's outstanding principal, its specific annual percentage rate (APR), and pre-configured day-count conventions (e.g., ACT/365, ACT/360).1  
-* **Payment Processing and Allocation:** The system will ingest and process borrower payments. It will implement a strict allocation waterfall, applying funds first to any accrued interest, then to fees (if applicable), and finally to the loan's principal balance.1  
-* **Early Settlement Quotation:** The system will provide the functionality to calculate and generate early settlement quotes for borrowers who wish to repay their loan ahead of the scheduled maturity date.1  
+* **Loan Lifecycle Management:** The system will manage the entire post-funding lifecycle of a loan, from the point of funding, through its active servicing period, to its final settlement or scheduled closure.1
+* **Daily Interest Accrual:** The system will automatically perform daily interest calculations for all active loans. This calculation will be based on the loan's outstanding principal, its specific annual percentage rate (APR), and pre-configured day-count conventions (e.g., ACT/365, ACT/360).1
+* **Payment Processing and Allocation:** The system will ingest and process borrower payments. It will implement a strict allocation waterfall, applying funds first to any accrued interest, then to fees (if applicable), and finally to the loan's principal balance.1
+* **Early Settlement Quotation:** The system will provide the functionality to calculate and generate early settlement quotes for borrowers who wish to repay their loan ahead of the scheduled maturity date.1
 * **Month-End Accounting Summaries:** At the conclusion of each accounting period, the system will aggregate all financial activities (accruals, payments, etc.) into a summarized batch, ready for export to the downstream General Ledger system.1
 
 #### **Out-of-Scope (Future Roadmap / Potential Enhancements)**
 
 The following areas are explicitly out of scope for the MVP. Framing these as part of a future roadmap, rather than as limitations, demonstrates a strategic and disciplined approach to product development. It shows a clear vision for the platform's evolution and its potential for future growth and customization.
 
-* **Loan Origination and Underwriting:** The system will not handle any pre-funding activities, such as loan application processing, credit scoring, risk assessment, or underwriting decisions. It assumes a loan is fully approved and ready for funding when it enters the LMS.1  
-* **Complex Loan Products:** The MVP will be limited to simple, fixed-term commercial loans. More complex financial products, such as those with variable interest rates, revolving lines of credit, or syndicated loans, are not included.1  
-* **Delinquency and Collections Management:** The system will not include workflows for managing late payments, delinquency tracking, collections, or workout arrangements. These processes are considered separate functional domains for future consideration.1  
+* **Loan Origination and Underwriting:** The system will not handle any pre-funding activities, such as loan application processing, credit scoring, risk assessment, or underwriting decisions. It assumes a loan is fully approved and ready for funding when it enters the LMS.1
+* **Complex Loan Products:** The MVP will be limited to simple, fixed-term commercial loans. More complex financial products, such as those with variable interest rates, revolving lines of credit, or syndicated loans, are not included.1
+* **Delinquency and Collections Management:** The system will not include workflows for managing late payments, delinquency tracking, collections, or workout arrangements. These processes are considered separate functional domains for future consideration.1
 * **Direct Customer-Facing Portal:** The UI is designed for internal operational staff. A self-service portal for borrowers is out of scope for this version.
+
+
+
+### **1.2A. Scope Extension — Events of Default (MVP‑EoD)**
+
+**Purpose:** Introduce a minimal, auditable process to **detect**, **record**, **triage**, **cure**, and **(optionally) accelerate** loans following an Event of Default (EoD), while keeping full collections & enforcement outside MVP.
+
+**In‑Scope (MVP‑EoD)**
+- **EoD Catalog (configurable):**
+    - *Non‑payment beyond grace period*
+    - *Breach of covenant* (manual raise or external feed)
+    - *Cross‑default* (manual/external)
+    - *Insolvency/bankruptcy* (manual/external)
+    - *Misrepresentation* (manual)
+- **Case lifecycle:** Open → In‑Cure → Cured / Confirmed → Accelerated (optional) → Closed.
+- **Cure handling:** Record cure actions and outcomes; restore standard terms on cure.
+- **Default interest option:** Optional switch to a **default rate** (APR + configurable default margin) while default persists.
+- **Acceleration option:** Compute **accelerated payoff** and freeze further schedule‑based processing for the loan.
+- **Accounting options (policy controlled):**
+    - Continue accrual at default rate **or**
+    - Suspend income recognition (non‑accrual) and track memo interest.
+- **Audit & controls:** Maker/Checker on **Confirm Default** and **Acceleration**; immutable timeline.
+
+**Out‑of‑Scope (remains future):** Full collections strategies, legal enforcement workflow, collateral realization.
+
+> Rationale: This extension complements the existing post‑funding servicing scope by adding controlled exception handling without introducing full collections or borrower‑facing tools.
 
 ### **1.3. User Personas and Roles**
 
@@ -79,8 +106,8 @@ graph TD
 
 **Diagram Components:**
 
-* **Loan Management System (LMS):** The central system described in this specification. It contains the core business logic, the user interface, the API layer for integrations, and its internal sub-ledger database.  
-* **Users (Loan Administrator, Payment Processor, Finance Manager):** The internal user personas who interact with the system via its Operational UI to perform their job functions.  
+* **Loan Management System (LMS):** The central system described in this specification. It contains the core business logic, the user interface, the API layer for integrations, and its internal sub-ledger database.
+* **Users (Loan Administrator, Payment Processor, Finance Manager):** The internal user personas who interact with the system via its Operational UI to perform their job functions.
 * **General Ledger (GL) System:** The primary downstream system. The LMS integrates with the GL by exporting a summarized batch of financial data at the end of each month, acting as a detailed sub-ledger.1
 
 ### **1.5. Glossary of Terms & Acronyms**
@@ -121,53 +148,53 @@ This epic covers all functionalities related to the creation, approval, funding,
 
 **User Story 1: Loan Creation**
 
-* **As a** Clare, the Loan Administrator,  
-* **I want to** create a new loan record by entering its core attributes (e.g., associated party, principal amount, APR, term, funding date).  
-* **So that** the loan can be formally captured in the system and submitted for the required internal approval.  
-* **Acceptance Criteria:**  
-  1. Given I am logged in as a Loan Administrator and navigate to the "Create New Loan" page,  
-     When I select a valid Party from the party list,  
-     And I enter valid data for Principal, APR, Term (12, 24, or 36 months), and a future Funding Date,  
-     And I click "Submit for Approval",  
-     Then the system shall create a new Loan entity in the APPROVAL\_PENDING state.  
-  2. Given I am creating a new loan,  
-     When I attempt to submit the form with a missing required field (e.g., Principal),  
-     Then the system shall display a validation error message and prevent the creation of the loan.  
-  3. Given I am creating a new loan,  
-     When I enter an APR outside of a pre-configured acceptable range (e.g., less than 1% or greater than 25%),  
-     Then the system shall display a warning message, but still allow submission if I confirm the action.
+* **As a** Clare, the Loan Administrator,
+* **I want to** create a new loan record by entering its core attributes (e.g., associated party, principal amount, APR, term, funding date).
+* **So that** the loan can be formally captured in the system and submitted for the required internal approval.
+* **Acceptance Criteria:**
+    1. Given I am logged in as a Loan Administrator and navigate to the "Create New Loan" page,  
+       When I select a valid Party from the party list,  
+       And I enter valid data for Principal, APR, Term (12, 24, or 36 months), and a future Funding Date,  
+       And I click "Submit for Approval",  
+       Then the system shall create a new Loan entity in the APPROVAL\_PENDING state.
+    2. Given I am creating a new loan,  
+       When I attempt to submit the form with a missing required field (e.g., Principal),  
+       Then the system shall display a validation error message and prevent the creation of the loan.
+    3. Given I am creating a new loan,  
+       When I enter an APR outside of a pre-configured acceptable range (e.g., less than 1% or greater than 25%),  
+       Then the system shall display a warning message, but still allow submission if I confirm the action.
 
 **User Story 2: Loan Approval**
 
-* **As a** Fiona, the Finance Manager (acting as an approver),  
-* **I want to** review a loan pending approval and either approve or reject it.  
-* **So that** I can enforce the company's "maker/checker" financial control policy.  
-* **Acceptance Criteria:**  
-  1. Given a loan exists in the APPROVAL\_PENDING state,  
-     When I, as a user with approval permissions, view the loan details,  
-     And I click the "Approve" button,  
-     Then the system shall transition the loan's state to APPROVED.  
-  2. Given a loan exists in the APPROVAL\_PENDING state,  
-     When I, as a user with approval permissions, click the "Reject" button,  
-     Then the system shall transition the loan's state to a REJECTED state (or back to DRAFT with a reason).  
-  3. Given I am the user who created the loan (the "maker"),  
-     When I view the loan in the APPROVAL\_PENDING state,  
-     Then the "Approve" and "Reject" buttons shall be disabled to enforce the maker/checker rule.
+* **As a** Fiona, the Finance Manager (acting as an approver),
+* **I want to** review a loan pending approval and either approve or reject it.
+* **So that** I can enforce the company's "maker/checker" financial control policy.
+* **Acceptance Criteria:**
+    1. Given a loan exists in the APPROVAL\_PENDING state,  
+       When I, as a user with approval permissions, view the loan details,  
+       And I click the "Approve" button,  
+       Then the system shall transition the loan's state to APPROVED.
+    2. Given a loan exists in the APPROVAL\_PENDING state,  
+       When I, as a user with approval permissions, click the "Reject" button,  
+       Then the system shall transition the loan's state to a REJECTED state (or back to DRAFT with a reason).
+    3. Given I am the user who created the loan (the "maker"),  
+       When I view the loan in the APPROVAL\_PENDING state,  
+       Then the "Approve" and "Reject" buttons shall be disabled to enforce the maker/checker rule.
 
 **User Story 3: Loan Funding**
 
-* **As a** Clare, the Loan Administrator,  
-* **I want to** mark an approved loan as "Funded".  
-* **So that** the system can initialize its financial balances and begin the active servicing lifecycle.  
-* **Acceptance Criteria:**  
-  1. Given a loan exists in the APPROVED state,  
-     When I navigate to the loan's detail page and click "Confirm Funding",  
-     Then the system shall transition the loan's state to FUNDED.  
-  2. Given a loan has just transitioned to the FUNDED state,  
-     Then the system shall set the outstandingPrincipal balance equal to the initial principal amount.  
-  3. Given the current date is on or after the loan's fundedDate,  
-     When the loan is in the FUNDED state,  
-     Then the system shall automatically transition the loan's state to ACTIVE.
+* **As a** Clare, the Loan Administrator,
+* **I want to** mark an approved loan as "Funded".
+* **So that** the system can initialize its financial balances and begin the active servicing lifecycle.
+* **Acceptance Criteria:**
+    1. Given a loan exists in the APPROVED state,  
+       When I navigate to the loan's detail page and click "Confirm Funding",  
+       Then the system shall transition the loan's state to FUNDED.
+    2. Given a loan has just transitioned to the FUNDED state,  
+       Then the system shall set the outstandingPrincipal balance equal to the initial principal amount.
+    3. Given the current date is on or after the loan's fundedDate,  
+       When the loan is in the FUNDED state,  
+       Then the system shall automatically transition the loan's state to ACTIVE.
 
 #### **2.1.2. Epic: Payment Processing**
 
@@ -175,38 +202,38 @@ This epic covers all functionalities related to receiving and allocating borrowe
 
 **User Story 4: Manual Payment Entry**
 
-* **As a** Peter, the Payment Processor,  
-* **I want to** manually record a payment received from a borrower against a specific loan.  
-* **So that** the funds can be accurately captured and allocated to the borrower's outstanding balance.  
+* **As a** Peter, the Payment Processor,
+* **I want to** manually record a payment received from a borrower against a specific loan.
+* **So that** the funds can be accurately captured and allocated to the borrower's outstanding balance.
 * **Acceptance Criteria:**
-  1. Given I am viewing an ACTIVE loan,
-     When I use the "Record Payment" action and enter a payment amount and a value date,
-     And I click "Submit",
-     Then the system shall create a new Payment entity in the CAPTURED state, associated with the correct loan.
-  2. Given a new payment has been CAPTURED,
-     Then the system shall automatically evaluate if the payment matches to an active loan:
-     - If the loan exists and is active, the payment transitions to MATCHED.
-     - If the loan does not exist or is not active, the payment transitions to UNMATCHED for manual resolution.
-  3. Given a payment is MATCHED,
-     Then the system shall automatically allocate the funds (interest first, then principal) and transition it to ALLOCATED.
-  4. Given a payment is ALLOCATED,
-     Then the system shall post the sub-ledger entries, update the loan's balances, and transition the payment to POSTED.
-  5. Given a payment is UNMATCHED,
-     Then a user can manually match it to a loan or return the payment to the payer.
+    1. Given I am viewing an ACTIVE loan,
+       When I use the "Record Payment" action and enter a payment amount and a value date,
+       And I click "Submit",
+       Then the system shall create a new Payment entity in the CAPTURED state, associated with the correct loan.
+    2. Given a new payment has been CAPTURED,
+       Then the system shall automatically evaluate if the payment matches to an active loan:
+        - If the loan exists and is active, the payment transitions to MATCHED.
+        - If the loan does not exist or is not active, the payment transitions to UNMATCHED for manual resolution.
+    3. Given a payment is MATCHED,
+       Then the system shall automatically allocate the funds (interest first, then principal) and transition it to ALLOCATED.
+    4. Given a payment is ALLOCATED,
+       Then the system shall post the sub-ledger entries, update the loan's balances, and transition the payment to POSTED.
+    5. Given a payment is UNMATCHED,
+       Then a user can manually match it to a loan or return the payment to the payer.
 
 **User Story 5: View Payment History**
 
-* **As a** Clare, the Loan Administrator,  
-* **I want to** view a complete history of all payments made against a loan.  
-* **So that** I can answer queries from borrowers or internal stakeholders about payment application.  
-* **Acceptance Criteria:**  
-  1. Given I am viewing any loan that has received payments,  
-     When I navigate to the "Payment History" tab,  
-     Then I shall see a table listing all associated payments.  
-  2. Given I am viewing the payment history table,  
-     Then the table shall include columns for Payment Date, Value Date, Amount, and Status (e.g., POSTED).  
-  3. Given I click on a specific payment in the history table,  
-     Then I shall be shown a detailed view of that payment, including how the funds were allocated between interest and principal.
+* **As a** Clare, the Loan Administrator,
+* **I want to** view a complete history of all payments made against a loan.
+* **So that** I can answer queries from borrowers or internal stakeholders about payment application.
+* **Acceptance Criteria:**
+    1. Given I am viewing any loan that has received payments,  
+       When I navigate to the "Payment History" tab,  
+       Then I shall see a table listing all associated payments.
+    2. Given I am viewing the payment history table,  
+       Then the table shall include columns for Payment Date, Value Date, Amount, and Status (e.g., POSTED).
+    3. Given I click on a specific payment in the history table,  
+       Then I shall be shown a detailed view of that payment, including how the funds were allocated between interest and principal.
 
 #### **2.1.3. Epic: Financial Calculations & Reporting**
 
@@ -214,36 +241,114 @@ This epic covers the core automated financial processes of the system.
 
 **User Story 6: Daily Interest Accrual**
 
-* **As a** System,  
-* **I want to** automatically calculate and record interest for every ACTIVE loan each day.  
-* **So that** the company's interest receivable balance is always accurate and up-to-date.  
-* **Acceptance Criteria:**  
-  1. Given it is the end of the business day (EOD),  
-     When the daily accrual job runs,  
-     Then the system shall create one new Accrual record for each loan in the ACTIVE state.  
-  2. Given an Accrual record is being created for a loan,  
-     Then the interest amount shall be calculated as: outstandingPrincipal \* APR \* (Day Count Fraction).  
-  3. Given the Accrual record is successfully created and recorded,  
-     Then the system shall update the accruedInterest balance on the corresponding Loan entity.  
-  4. Given the accrual job runs,  
-     Then it shall post the corresponding debit/credit entries to the internal sub-ledger (Dr Interest Receivable, Cr Interest Income).
+* **As a** System,
+* **I want to** automatically calculate and record interest for every ACTIVE loan each day.
+* **So that** the company's interest receivable balance is always accurate and up-to-date.
+* **Acceptance Criteria:**
+    1. Given it is the end of the business day (EOD),  
+       When the daily accrual job runs,  
+       Then the system shall create one new Accrual record for each loan in the ACTIVE state.
+    2. Given an Accrual record is being created for a loan,  
+       Then the interest amount shall be calculated as: outstandingPrincipal \* APR \* (Day Count Fraction).
+    3. Given the Accrual record is successfully created and recorded,  
+       Then the system shall update the accruedInterest balance on the corresponding Loan entity.
+    4. Given the accrual job runs,  
+       Then it shall post the corresponding debit/credit entries to the internal sub-ledger (Dr Interest Receivable, Cr Interest Income).
 
 **User Story 7: Month-End GL Batch Generation**
 
-* **As a** Fiona, the Finance Manager,  
-* **I want to** initiate the month-end process to generate a summarized GL batch of all financial activity.  
-* **So that** I can prepare the financial data for posting to the company's main General Ledger.  
-* **Acceptance Criteria:**  
-  1. Given it is the end of an accounting month,  
-     When I trigger the "Prepare GL Batch" process for that month,  
-     Then the system shall create a new GLBatch entity in the PREPARED state.  
-  2. Given the GLBatch is PREPARED,  
-     Then it shall contain aggregated journal lines summarizing all interest accruals, payment applications, and principal reductions that occurred during the month.  
-  3. Given the GLBatch is PREPARED,  
-     Then the sum of all debit entries must equal the sum of all credit entries.  
-  4. Given I have reviewed the PREPARED batch and it is correct,  
-     When I (and a second approver) execute the "Export" action,  
-     Then the system shall generate the GL data in the specified file format (e.g., CSV) and transition the batch to EXPORTED.
+* **As a** Fiona, the Finance Manager,
+* **I want to** initiate the month-end process to generate a summarized GL batch of all financial activity.
+* **So that** I can prepare the financial data for posting to the company's main General Ledger.
+* **Acceptance Criteria:**
+    1. Given it is the end of an accounting month,  
+       When I trigger the "Prepare GL Batch" process for that month,  
+       Then the system shall create a new GLBatch entity in the PREPARED state.
+    2. Given the GLBatch is PREPARED,  
+       Then it shall contain aggregated journal lines summarizing all interest accruals, payment applications, and principal reductions that occurred during the month.
+    3. Given the GLBatch is PREPARED,  
+       Then the sum of all debit entries must equal the sum of all credit entries.
+    4. Given I have reviewed the PREPARED batch and it is correct,  
+       When I (and a second approver) execute the "Export" action,  
+       Then the system shall generate the GL data in the specified file format (e.g., CSV) and transition the batch to EXPORTED.
+
+
+
+#### **2.1.x. Epic: Events of Default Management**
+
+**Actors**
+- **Loan Administrator** (maker)
+- **Finance Manager** (checker/approver for default & acceleration)
+- **Risk/Collections Analyst** (triage, cure tracking)
+- **System (Scheduler)** (non‑payment detection)
+
+**User Story E1: Detect Non‑Payment EoD (Scheduled)**
+
+- **As the** System,
+- **I want to** scan active loans for missed payments beyond a **product‑level grace period**,
+- **So that** I can raise a **Non‑Payment** EoD and open a case.
+
+**Acceptance Criteria**
+1. Given a loan is **ACTIVE** and an instalment due date + graceDays has passed with unpaid *required* amount, the system **creates an EoD event** (type: NON_PAYMENT) and **opens a DefaultCase in OPEN** with `cureDeadline = dueDate + graceDays`.
+2. The loan’s **dashboard** displays an **EoD banner** with status **IN_CURE** and a countdown to `cureDeadline`.
+3. The event and case are written to the audit timeline.
+
+**User Story E2: Manually Raise EoD (Covenant, Cross‑Default, Insolvency)**
+
+- **As a** Risk/Collections Analyst,
+- **I want to** raise an EoD with evidence and a recommended cure period,
+- **So that** the loan can be triaged with proper controls.
+
+**Acceptance Criteria**
+1. From the loan detail, **Raise EoD** allows selection of: COVENANT_BREACH, CROSS_DEFAULT, INSOLVENCY, MISREPRESENTATION.
+2. On submit, a **DefaultCase** is opened with state **OPEN** and the **EoD event** is logged as **RAISED**.
+3. A **maker/checker** approval is required to **confirm** the EoD (transition **OPEN → CONFIRMED**) before any accounting or rate changes.
+
+**User Story E3: Cure an EoD**
+
+- **As a** Loan Administrator,
+- **I want to** record cure actions (e.g., payment receipt, covenant documentation),
+- **So that** the case can be **CURED** within the cure window.
+
+**Acceptance Criteria**
+1. If cure evidence is accepted by a checker, the DefaultCase transitions **IN_CURE → CURED**, and any **default rate** is removed for periods **after** the cure effective date.
+2. The loan **remains ACTIVE**; schedule is recalculated only if the cure involved **payment re‑casting**.
+
+**User Story E4: Confirm Default (Post‑Cure Failure)**
+
+- **As a** Finance Manager (checker),
+- **I want to** confirm default when cure window lapses without remedy,
+- **So that** default treatments are consistently applied.
+
+**Acceptance Criteria**
+1. On `now() > cureDeadline` with outstanding breach, the case becomes **CONFIRMABLE**; checker approval moves it to **CONFIRMED**.
+2. On confirm, system applies **policy**:
+    - **Option A (Default Rate):** Switch loan to `aprDefault = apr + defaultMarginBps`.
+    - **Option B (Non‑Accrual):** Stop income recognition; continue memo accrual.
+3. The system records the policy applied and effective timestamp.
+
+**User Story E5: Acceleration (Optional)**
+
+- **As a** Finance Manager (checker),
+- **I want to** accelerate the loan,
+- **So that** the **accelerated payoff** is calculated and the loan ceases scheduled amortization.
+
+**Acceptance Criteria**
+1. When a case is **CONFIRMED**, action **Accelerate** is enabled (checker only).
+2. **Accelerate** runs **ComputeAcceleratedBalance**:  
+   `principalOutstanding + accruedInterest(to accelDate [+ default interest if policy A]) + fees/charges`
+3. Loan state moves to **ACCELERATED**; future schedule items are **suspended**; payment waterfall applies to **accelerated payoff** first.
+4. A **SettlementQuote** (reason: ACCELERATION) is created and attached to the case.
+
+**User Story E6: Close Default Case**
+
+- **As a** Risk/Collections Analyst,
+- **I want to** close the default case after settlement or waiver,
+- **So that** the loan returns to steady‑state tracking.
+
+**Acceptance Criteria**
+1. If **accelerated payoff** is fully paid, loan transitions **ACCELERATED → SETTLED** and **DefaultCase → CLOSED**.
+2. If **waiver** is approved, case transitions to **CLOSED**, the loan resumes standard terms; any default margin ends from waiver effective date.
 
 ### **2.2. Core Business Processes (BPMN Diagrams)**
 
@@ -284,38 +389,108 @@ graph TD
     K -- Failure --> E
 ```
 
+
+
+#### **BPMN: EoD Detection & Response (High‑Level)**
+
+```mermaid
+graph TD
+    subgraph Scheduler
+      A(Scan Overdue & Grace)
+      B{Overdue > Grace?}
+    end
+    subgraph User/Risk
+      C(Raise EoD Manually)
+      D(Review Evidence)
+      E{Cure Received?}
+      F(Approve Cure)
+      G{Cure Window Lapsed?}
+      H(Confirm Default - Checker)
+      I{Accelerate?}
+      J(Compute Accelerated Balance)
+      K(Receive Payoff)
+      L(Close Case)
+    end
+    A --> B
+    B -- Yes --> D
+    C --> D
+    D -->|Open Case| E
+    E -- Yes --> F -->|Cured| L
+    E -- No --> G
+    G -- Yes --> H --> I
+    I -- Yes --> J --> K --> L
+    I -- No --> L
+```
+
 ### **2.3. Detailed Feature Specifications & Business Rules**
 
 This section contains the precise, non-negotiable business logic and calculation rules that underpin the system's functionality. Isolating these rules from the user stories and workflows improves clarity and makes the specification more maintainable, as these core financial rules can be updated in one place without altering the broader process descriptions.1
 
 #### **Daily Interest Accrual Calculation**
 
-* **Scope:** This process applies to all loans in the ACTIVE state.  
-* **Timing:** The process runs once per calendar day, triggered by an EOD event (e.g., post 23:00 Europe/London time).  
+* **Scope:** This process applies to all loans in the ACTIVE state.
+* **Timing:** The process runs once per calendar day, triggered by an EOD event (e.g., post 23:00 Europe/London time).
 * Calculation Formula: The daily interest amount is calculated as:  
-  interestt​=principalBase×effectiveRate×dcf  
-  * principalBase: The outstandingPrincipal of the loan at the start of day t.  
-  * effectiveRate: The loan's fixed APR.  
-  * dcf (Day-Count Fraction): The fraction of the year represented by a single day, determined by the loan's day-count basis:  
-    * **ACT/365:** The fraction is . The calculation is leap-year aware.  
-    * **ACT/360:** The fraction is .  
-    * **30/360:** Calculated according to the 30/360 day-count convention.  
-* **Precision:** All interest calculations must be performed and stored internally to a precision of at least 8 decimal places. Values presented in the UI or reports will be rounded to 2 decimal places.  
-* **Sub-Ledger Posting:** For each daily accrual, the system must generate the following balanced journal entry in its internal sub-ledger:  
-  * **Debit:** Interest Receivable  
-  * **Credit:** Interest Income
+  interestt​=principalBase×effectiveRate×dcf
+    * principalBase: The outstandingPrincipal of the loan at the start of day t.
+    * effectiveRate: The loan's fixed APR.
+    * dcf (Day-Count Fraction): The fraction of the year represented by a single day, determined by the loan's day-count basis:
+        * **ACT/365:** The fraction is . The calculation is leap-year aware.
+        * **ACT/360:** The fraction is .
+        * **30/360:** Calculated according to the 30/360 day-count convention.
+* **Precision:** All interest calculations must be performed and stored internally to a precision of at least 8 decimal places. Values presented in the UI or reports will be rounded to 2 decimal places.
+* **Sub-Ledger Posting:** For each daily accrual, the system must generate the following balanced journal entry in its internal sub-ledger:
+    * **Debit:** Interest Receivable
+    * **Credit:** Interest Income
 
 #### **Payment Allocation Waterfall**
 
-* **Rule:** When a payment is posted, the funds must be allocated in a strict, predefined order.  
-* **Allocation Order:**  
-  1. **Accrued Interest:** The payment amount is first applied to the accruedInterest balance on the loan until it is reduced to zero.  
-  2. **Fees:** (Out of scope for MVP, but the logic should accommodate this placeholder). The remaining amount is applied to any outstanding fees.  
-  3. **Principal:** Any remaining amount after clearing interest and fees is applied to the outstandingPrincipal balance.  
-* **Sub-Ledger Posting:** Upon posting a payment, the system generates a multi-line journal entry:  
-  * **Debit:** Cash (for the total payment amount)  
-  * **Credit:** Interest Receivable (for the portion allocated to interest)  
-  * **Credit:** Loan Principal (for the portion allocated to principal)
+* **Rule:** When a payment is posted, the funds must be allocated in a strict, predefined order.
+* **Allocation Order:**
+    1. **Accrued Interest:** The payment amount is first applied to the accruedInterest balance on the loan until it is reduced to zero.
+    2. **Fees:** (Out of scope for MVP, but the logic should accommodate this placeholder). The remaining amount is applied to any outstanding fees.
+    3. **Principal:** Any remaining amount after clearing interest and fees is applied to the outstandingPrincipal balance.
+* **Sub-Ledger Posting:** Upon posting a payment, the system generates a multi-line journal entry:
+    * **Debit:** Cash (for the total payment amount)
+    * **Credit:** Interest Receivable (for the portion allocated to interest)
+    * **Credit:** Loan Principal (for the portion allocated to principal)
+
+
+
+#### **Default Handling — Business Rules (Additions)**
+
+**2.3.1. Grace & Cure**
+- **graceDays**: per product or per loan; applied to *Non‑Payment*.
+- **cureDeadline**: `triggerDate + cureDays` (per event type/config).
+- Cure transitions revert **default rate** from the **cure effective date** onward.
+
+**2.3.2. Default Interest Policy (Config, per product)**
+- `defaultMarginBps`: integer; applied **on and after** `defaultConfirmedAt`.
+- **Policy A (Default Rate):** continue accrual → post **Interest Receivable / Default Interest Income**.
+- **Policy B (Non‑Accrual):** cease income recognition; accrue to **Suspended Interest (memo)**; cash receipts first clear **suspended**.
+
+**2.3.3. Acceleration**
+- **Accelerated Balance** on `accelDate` = `principalOutstanding + accruedRegular + accruedDefault + fees/charges`.
+- After acceleration, **no new schedule instalments** are generated; waterfall targets **accelerated balance**.
+
+**2.3.4. Payment Waterfall (While Default Active)**
+1) **Default Interest (if Policy A)** → 2) **Regular Accrued Interest** → 3) **Fees/Charges** → 4) **Principal / Accelerated Balance**.
+
+**2.3.5. GL Posting Variants (Policy‑Driven)**
+- **Default Rate (A):**
+    - Daily accrual: Dr **Interest Receivable (Default)** / Cr **Default Interest Income**
+- **Non‑Accrual (B):**
+    - No P&L recognition; track memo interest (off‑ledger) until cash is received.
+    - On cash receipt: Dr **Cash**, Cr **Suspended Interest** (to reduce memo), remainder Cr **Principal** / **Fees** as applicable.
+
+
+
+### **2.4. Accounting Integration Notes (Month‑End) — Default Handling**
+
+- Tag accrual and cash journals arising **while default is active** with source flags (`source = "DEFAULT_INTEREST"` or `source = "SUSPENDED_INTEREST"`) to support **segmented aggregation** in the GL batch.
+- The **GLBatch** summarization must respect policy:
+    - **Default Rate:** include Default Interest Income lines.
+    - **Non‑Accrual:** exclude memo interest from GL; include cash releases reducing Suspended Interest when received.
 
 ## **Part 3: Data Model & State Management (Cyoda AI Specification)**
 
@@ -348,6 +523,85 @@ erDiagram
 ```
 
 
+
+
+
+### **3.1A. ERD (Delta for Default Handling)**
+
+```mermaid
+erDiagram
+    Loan ||--o{ Payment : "receives"
+    Loan ||--o{ Accrual : "generates"
+    Loan ||--o{ SettlementQuote : "can have"
+    Loan ||--o{ DefaultCase : "may open"
+    DefaultCase ||--o{ EoDEvent : "captures"
+```
+
+### **3.1.2. New Entities (Conceptual)**
+
+**EoDEvent** — Captures a single alleged or confirmed event of default against a loan.
+
+| Field | Type | Notes |
+|---|---|---|
+| eodEventId | string | Identifier |
+| loanId | string | FK Loan |
+| type | enum | NON_PAYMENT \| COVENANT_BREACH \| CROSS_DEFAULT \| INSOLVENCY \| MISREPRESENTATION |
+| raisedAt | datetime | When raised |
+| source | enum | SYSTEM \| USER \| EXTERNAL |
+| graceDays | int | For non‑payment or as configured |
+| cureDays | int | Optional |
+| status | enum | RAISED \| IN_CURE \| CURED \| CONFIRMED \| WITHDRAWN |
+| evidence | array | URIs/notes |
+| audit | object | Created/updated info |
+
+**DefaultCase** — Aggregates EoD events and drives consequential actions.
+
+| Field | Type | Notes |
+|---|---|---|
+| defaultCaseId | string | Identifier |
+| loanId | string | FK Loan |
+| state | enum | OPEN \| IN_CURE \| CURED \| CONFIRMED \| ACCELERATED \| CLOSED |
+| controllingEventId | string | EoDEvent currently controlling the case |
+| policy | enum | DEFAULT_RATE \| NON_ACCRUAL |
+| defaultMarginBps | int | If policy is DEFAULT_RATE |
+| cureDeadline | datetime | Derived from controlling event |
+| acceleration | object | { acceleratedAmount, accelDate, quoteId } |
+| timeline | array | Case notes & actions |
+| audit | object | Maker/Checker approvals |
+
+### **3.3.x. FSMs for Default Handling**
+
+**EoDEvent FSM**
+
+```mermaid
+stateDiagram-v2
+    [*] --> initial
+    initial --> raised: Validation Success
+    initial --> validation_error: Validation Failed
+    raised --> in_cure: Set Cure Window
+    raised --> confirmed: Checker Confirms Immediately
+    in_cure --> cured: Cure Approved
+    in_cure --> confirmed: Cure Window Lapsed & Checker Confirms
+    raised --> withdrawn: Withdraw (Manual)
+    confirmed --> [*]
+    cured --> [*]
+    withdrawn --> [*]
+```
+
+**DefaultCase FSM**
+
+```mermaid
+stateDiagram-v2
+    [*] --> open
+    open --> in_cure: Cure Window Set
+    in_cure --> cured: Cure Approved
+    in_cure --> confirmed: Cure Lapsed & Confirmed
+    confirmed --> accelerated: Accelerate Loan (Checker)
+    confirmed --> closed: Waiver Granted
+    accelerated --> closed: Accelerated Payoff Received
+    cured --> closed: Close Case
+    closed --> [*]
+```
 
 ### **3.2. Standard Validation Error Pattern**
 
@@ -651,8 +905,6 @@ Represents a funded commercial loan under servicing. It is the aggregate root fo
 ```
 
 **Future State Features Not Yet Implemented:**
-- `payments` array (handled as separate Payment entity in MVP)
-- `events_of_default` array
 - `tax` configuration object
 - `undertakings` array
 - `representations` array
@@ -754,6 +1006,20 @@ The current MVP implementation focuses on core loan servicing operations with si
           "application": null
         }
       }
+    }
+  ],
+  "events_of_default": [
+    {
+      "eod_id": "EOD1",
+      "name": "Non-payment",
+      "grace_days": 3,
+      "remedy": "Agent may accelerate"
+    },
+    {
+      "eod_id": "EOD2",
+      "name": "Breach of Covenant",
+      "grace_days": 30,
+      "remedy": "Lender may demand repayment"
     }
   ],
   "validation_error_reason": null
@@ -1068,26 +1334,98 @@ stateDiagram-v2
 
 Processors contain the business logic executed during state transitions. Defining their triggers, execution modes, and side effects explicitly provides a precise contract for code generation, ensuring the system is not only functionally correct but also resilient and performant by clarifying transactional boundaries.1
 
-* **ValidateNewLoan (SYNC)**  
-  * **Trigger:** On Loan.Create transition.  
-  * **Inputs:** New loan data (party ID, term, APR).  
-  * **Logic:** Verifies that the associated partyId exists and is active, the term is one of the allowed values {12, 24, 36}, and the APR is within a valid range.  
-  * **Outputs:** Throws a validation exception on failure, preventing the state transition.  
-* **SetInitialBalances (SYNC)**  
-  * **Trigger:** On Loan.Fund transition (APPROVED \-\> FUNDED).  
-  * **Inputs:** The Loan entity.  
-  * **Logic:** Sets outstandingPrincipal equal to the initial principal. Sets accruedInterest to 0\.  
-  * **Outputs:** Updated Loan entity. This action occurs within the same transaction as the state change.  
-* **ComputeDailyInterest (SYNC)**  
-  * **Trigger:** On Accrual.StartAccrual transition.  
-  * **Inputs:** Loan's outstandingPrincipal (as of prior day), APR, and day-count basis.  
-  * **Logic:** Performs the interest calculation as defined in Section 2.3.  
-  * **Outputs:** A precise interest amount (8 decimal places), stored on the Accrual entity.  
-* **SummarizePeriod (ASYNC\_NEW\_TX)**  
-  * **Trigger:** On GLBatch.Prepare transition (OPEN \-\> PREPARED).  
-  * **Inputs:** The period (e.g., "2023-10").  
-  * **Logic:** Queries all sub-ledger entries (from Accruals and Payments) for the given period. Groups and aggregates them by GL account, product, and cost center. Calculates control totals.  
-  * **Outputs:** Populates the entries and controlTotals fields of the GLBatch entity. Runs in a separate transaction to handle potentially long-running queries without blocking the user.
+* **ValidateNewLoan (SYNC)**
+    * **Trigger:** On Loan.Create transition.
+    * **Inputs:** New loan data (party ID, term, APR).
+    * **Logic:** Verifies that the associated partyId exists and is active, the term is one of the allowed values {12, 24, 36}, and the APR is within a valid range.
+    * **Outputs:** Throws a validation exception on failure, preventing the state transition.
+* **SetInitialBalances (SYNC)**
+    * **Trigger:** On Loan.Fund transition (APPROVED \-\> FUNDED).
+    * **Inputs:** The Loan entity.
+    * **Logic:** Sets outstandingPrincipal equal to the initial principal. Sets accruedInterest to 0\.
+    * **Outputs:** Updated Loan entity. This action occurs within the same transaction as the state change.
+* **ComputeDailyInterest (SYNC)**
+    * **Trigger:** On Accrual.StartAccrual transition.
+    * **Inputs:** Loan's outstandingPrincipal (as of prior day), APR, and day-count basis.
+    * **Logic:** Performs the interest calculation as defined in Section 2.3.
+    * **Outputs:** A precise interest amount (8 decimal places), stored on the Accrual entity.
+* **SummarizePeriod (ASYNC\_NEW\_TX)**
+    * **Trigger:** On GLBatch.Prepare transition (OPEN \-\> PREPARED).
+    * **Inputs:** The period (e.g., "2023-10").
+    * **Logic:** Queries all sub-ledger entries (from Accruals and Payments) for the given period. Groups and aggregates them by GL account, product, and cost center. Calculates control totals.
+    * **Outputs:** Populates the entries and controlTotals fields of the GLBatch entity. Runs in a separate transaction to handle potentially long-running queries without blocking the user.
+
+
+
+### **3.4. Criteria & Processors — Default Handling Additions**
+
+**Criteria**
+- `IsOverdueBeyondGrace(loan, instalment, graceDays)` → bool
+- `CureEvidenceAccepted(eodEvent)` → bool (checker)
+- `CaseConfirmable(defaultCase)` → bool (now > cureDeadline and breach persists)
+
+**Processors**
+- `OpenDefaultCase(loan, eodEvent)` (SYNC): create case, set `controllingEventId`, derive `cureDeadline`.
+- `ApplyDefaultPolicy(defaultCase)` (SYNC):
+    - If DEFAULT_RATE: set `aprDefault = apr + defaultMarginBps`; schedule accrual to Default Interest Income.
+    - If NON_ACCRUAL: halt income recognition; enable memo accrual.
+- `ComputeAcceleratedBalance(loan, defaultCase, accelDate)` (SYNC): compute payoff; attach `SettlementQuote`.
+- `FreezeScheduleOnAcceleration(loan)` (SYNC): block future instalment generation.
+- `RecordCure(defaultCase, eodEvent)` (SYNC): set `CURED`; revert to standard APR going forward; re‑enable normal accrual.
+- `CloseCase(defaultCase)` (SYNC): terminal transition; snapshot outcomes & audit.
+
+
+### **3.5. Data Examples (Default Handling)**
+
+**EoDEvent (Non‑Payment, scheduled detection)**
+
+```json
+{
+  "eodEventId": "EOD-000123",
+  "loanId": "LOAN-2025-001",
+  "type": "NON_PAYMENT",
+  "raisedAt": "2025-10-05T00:05:00Z",
+  "source": "SYSTEM",
+  "graceDays": 3,
+  "cureDays": 7,
+  "status": "IN_CURE",
+  "evidence": [
+    {"note": "Instalment due 2025-10-01 unpaid as of 2025-10-05"}
+  ],
+  "audit": {"createdBy": "Scheduler", "createdAt": "2025-10-05T00:05:00Z"}
+}
+```
+
+**DefaultCase (Confirmed & Accelerated)**
+
+```json
+{
+  "defaultCaseId": "DC-000045",
+  "loanId": "LOAN-2025-001",
+  "state": "ACCELERATED",
+  "controllingEventId": "EOD-000123",
+  "policy": "DEFAULT_RATE",
+  "defaultMarginBps": 250,
+  "cureDeadline": "2025-10-12T23:59:59Z",
+  "acceleration": {
+    "accelDate": "2025-10-13",
+    "acceleratedAmount": 514320.75,
+    "quoteId": "SQ-ACCEL-0009"
+  },
+  "timeline": [
+    {"at": "2025-10-12T23:59:59Z", "action": "Cure window lapsed"},
+    {"at": "2025-10-13T09:00:00Z", "action": "Default confirmed (checker)"},
+    {"at": "2025-10-13T09:05:00Z", "action": "Acceleration computed"}
+  ],
+  "audit": {
+    "maker": "loan_admin_1",
+    "checker": "finance_mgr_2",
+    "createdAt": "2025-10-05T00:05:00Z",
+    "updatedAt": "2025-10-13T09:05:00Z"
+  }
+}
+```
+
 
 ## **Part 4: Non-Functional Requirements (NFRs)**
 
@@ -1097,44 +1435,53 @@ While functional requirements define what the system does, non-functional requir
 
 Performance and scalability requirements ensure the system is responsive under expected loads and can grow with the business.13
 
-* **Response Time:** 95% of all API requests for reading data (e.g., GET /loans/{id}) shall be completed and a response returned to the client in under 500 milliseconds under normal load conditions.15  
-* **Batch Processing:** The daily interest accrual batch job for a portfolio of 10,000 active loans must complete in under 15 minutes.  
-* **Concurrent Users:** The system must support up to 100 concurrent internal users performing standard operations without performance degradation.  
+* **Response Time:** 95% of all API requests for reading data (e.g., GET /loans/{id}) shall be completed and a response returned to the client in under 500 milliseconds under normal load conditions.15
+* **Batch Processing:** The daily interest accrual batch job for a portfolio of 10,000 active loans must complete in under 15 minutes.
+* **Concurrent Users:** The system must support up to 100 concurrent internal users performing standard operations without performance degradation.
 * **Scalability:** The system architecture must be capable of handling a 20% year-over-year growth in the number of active loans for the next 5 years without requiring a major architectural redesign.
 
 ### **4.2. Availability & Reliability**
 
 Availability and reliability requirements define the system's uptime and its ability to withstand and recover from failures.11
 
-* **Availability:** The system shall achieve an uptime of 99.95%, measured on a quarterly basis. This calculation excludes scheduled maintenance windows, which will be limited to 4 hours per month and communicated 7 days in advance.  
-* **Reliability:** The system must operate without critical failures for 99% of the time during business hours.14 A critical failure is defined as an event that prevents users from performing core business functions (e.g., creating loans, processing payments).  
-* **Resilience & Error Handling:**  
-  * **Idempotency:** All state-changing API endpoints (POST, PUT, DELETE) must be idempotent where applicable to prevent duplicate operations on network retries.  
-  * **Graceful Degradation:** In the event the downstream GL system is unavailable, the GL batch export function should be disabled in the UI with a clear status message. The system must continue to perform all other core functions.  
-  * **Automated Retries:** Failed attempts to send the GL batch file to the downstream system shall be automatically retried using an exponential back-off algorithm (e.g., retry after 1 min, 5 min, 15 min) for up to 4 hours before requiring manual intervention.17
+* **Availability:** The system shall achieve an uptime of 99.95%, measured on a quarterly basis. This calculation excludes scheduled maintenance windows, which will be limited to 4 hours per month and communicated 7 days in advance.
+* **Reliability:** The system must operate without critical failures for 99% of the time during business hours.14 A critical failure is defined as an event that prevents users from performing core business functions (e.g., creating loans, processing payments).
+* **Resilience & Error Handling:**
+    * **Idempotency:** All state-changing API endpoints (POST, PUT, DELETE) must be idempotent where applicable to prevent duplicate operations on network retries.
+    * **Graceful Degradation:** In the event the downstream GL system is unavailable, the GL batch export function should be disabled in the UI with a clear status message. The system must continue to perform all other core functions.
+    * **Automated Retries:** Failed attempts to send the GL batch file to the downstream system shall be automatically retried using an exponential back-off algorithm (e.g., retry after 1 min, 5 min, 15 min) for up to 4 hours before requiring manual intervention.17
 
 ### **4.3. Security & Compliance**
 
 Security and compliance are paramount for a financial system. These requirements define the measures to protect data integrity, control access, and meet regulatory obligations.13
 
-* **Authentication:** All access to the system's UI and API must be authenticated. The API must be secured using the OAuth 2.0 protocol.  
-* **Authorization:** The system must implement Role-Based Access Control (RBAC). User actions shall be restricted based on their assigned role (Loan Administrator, Payment Processor, Finance Manager). For example, only users in the Finance Manager role can approve a GL batch export.  
-* **Audit Trail:** Every state change to a financial entity (Loan, Payment, GLBatch) and any change to their core financial attributes must be recorded in an immutable audit log. The log must capture the user who made the change, the timestamp, and the before/after values.  
-* **Data Encryption:** All data must be encrypted in transit using TLS 1.2 or higher. Sensitive data at rest in the database should be encrypted.  
+* **Authentication:** All access to the system's UI and API must be authenticated. The API must be secured using the OAuth 2.0 protocol.
+* **Authorization:** The system must implement Role-Based Access Control (RBAC). User actions shall be restricted based on their assigned role (Loan Administrator, Payment Processor, Finance Manager). For example, only users in the Finance Manager role can approve a GL batch export.
+* **Audit Trail:** Every state change to a financial entity (Loan, Payment, GLBatch) and any change to their core financial attributes must be recorded in an immutable audit log. The log must capture the user who made the change, the timestamp, and the before/after values.
+* **Data Encryption:** All data must be encrypted in transit using TLS 1.2 or higher. Sensitive data at rest in the database should be encrypted.
 * **Compliance & Data Retention:** The system must retain all audit logs and archived GLBatch records for a minimum of 7 years to comply with financial regulations.
 
 ### **4.4. Maintainability & Usability**
 
 These requirements ensure the system is efficient to manage over its lifetime and provides a positive experience for its users.11
 
-* **Maintainability:**  
-  * **Code Quality:** All system code must adhere to defined coding standards and conventions.  
-  * **Test Coverage:** The back-end logic must achieve a minimum of 80% unit test coverage to facilitate safe refactoring and future enhancements.  
-  * **Logging:** The system must produce structured logs (e.g., JSON format) for all significant events, errors, and transactions to aid in troubleshooting and monitoring.  
-* **Usability:**  
-  * **Learnability:** A new user with domain knowledge should be able to complete core tasks (e.g., creating a loan, recording a payment) without formal training after a 15-minute guided orientation.  
-  * **Error Prevention:** The UI must provide real-time validation on all input forms to prevent users from entering incorrectly formatted data (e.g., non-numeric characters in an amount field). Critical actions (e.g., exporting a GL batch) must require a confirmation dialog before proceeding.  
-  * **Consistency:** The UI design, including layout, terminology, and interaction patterns, must be consistent across the entire application.15
+* **Maintainability:**
+    * **Code Quality:** All system code must adhere to defined coding standards and conventions.
+    * **Test Coverage:** The back-end logic must achieve a minimum of 80% unit test coverage to facilitate safe refactoring and future enhancements.
+    * **Logging:** The system must produce structured logs (e.g., JSON format) for all significant events, errors, and transactions to aid in troubleshooting and monitoring.
+* **Usability:**
+    * **Learnability:** A new user with domain knowledge should be able to complete core tasks (e.g., creating a loan, recording a payment) without formal training after a 15-minute guided orientation.
+    * **Error Prevention:** The UI must provide real-time validation on all input forms to prevent users from entering incorrectly formatted data (e.g., non-numeric characters in an amount field). Critical actions (e.g., exporting a GL batch) must require a confirmation dialog before proceeding.
+    * **Consistency:** The UI design, including layout, terminology, and interaction patterns, must be consistent across the entire application.15
+
+
+
+### **4.5. Non‑Functional & Controls — EoD‑Specific**
+
+- **Auditability:** All EoD transitions (raise, confirm, cure, accelerate, close) must be recorded with actor, timestamp, before/after state, and policy parameters.
+- **Idempotency:** Replays of *Confirm Default* and *Accelerate* must be idempotent (no duplicate quotes, no duplicate policy application).
+- **Access Control:** Only **checker** role can confirm default or accelerate.
+- **Observability:** Correlate EoD processors with loan id and defaultCaseId; provide dashboards for case aging and cure rates.
 
 ## **Part 5: Interface Specifications**
 
@@ -1146,63 +1493,72 @@ This guide provides the design philosophy, visual language, and component-level 
 
 #### **5.1.1. Design Philosophy**
 
-* **Corporate yet Modern:** The aesthetic should be professional, precise, and trustworthy. The design must inspire confidence through clarity and order. This is achieved with clean grid layouts, a controlled color palette, and a focus on function over ornamentation.1  
-* **High-Density Information:** The target users are expert operational staff who require access to large amounts of data. The design should prioritize information density through compact typography, reduced padding/margins, and well-structured data grouping. Dashboards and tables must be able to display many rows and columns without feeling cramped or sacrificing legibility.1  
+* **Corporate yet Modern:** The aesthetic should be professional, precise, and trustworthy. The design must inspire confidence through clarity and order. This is achieved with clean grid layouts, a controlled color palette, and a focus on function over ornamentation.1
+* **High-Density Information:** The target users are expert operational staff who require access to large amounts of data. The design should prioritize information density through compact typography, reduced padding/margins, and well-structured data grouping. Dashboards and tables must be able to display many rows and columns without feeling cramped or sacrificing legibility.1
 * **Minimalist Interaction:** Interactions should be clear and efficient. The design should use subtle hover states, clear but minimal iconography, and restrained animations. The goal is to reduce cognitive load, not to create a flashy experience.1
 
 #### **5.1.2. Visual Language**
 
-* **Typography:**  
-  * **Primary Font:** Inter or IBM Plex Sans. Both are chosen for their high legibility at small sizes, which is crucial for a data-dense interface.1  
-  * **Font Sizing:**  
-    * Headers: 14–16px (bold). Avoid oversized titles.  
-    * Body/Data Cells: 12–13px.  
-    * Labels/Metadata: 10–11px (lighter weight or color).  
-  * **Line Height:** Tight line-height () to support information density.1  
-* **Color Scheme (Light Theme):** A high-contrast, low-glare palette optimized for long periods of use.1  
-  * **Backgrounds:** Primary: \#FFFFFF, Secondary Panels: \#F5F6F7.  
-  * **Text:** Primary: \#1D1F23 (Charcoal), Secondary/Labels: \#5C6066 (Mid-gray).  
-  * **Accents (Restrained Use):**  
-    * Action Blue: \#2A7DE1 (buttons, links, focus states).  
-    * Emerald Green: \#27AE60 (success, positive status like APPROVED).  
-    * Amber Orange: \#F5A623 (warnings, pending status like APPROVAL\_PENDING).  
-    * Crimson Red: \#D64541 (errors, critical status like REJECTED).  
-  * **Borders & Dividers:** \#E0E3E6 (Neutral Divider Lines).
+* **Typography:**
+    * **Primary Font:** Inter or IBM Plex Sans. Both are chosen for their high legibility at small sizes, which is crucial for a data-dense interface.1
+    * **Font Sizing:**
+        * Headers: 14–16px (bold). Avoid oversized titles.
+        * Body/Data Cells: 12–13px.
+        * Labels/Metadata: 10–11px (lighter weight or color).
+    * **Line Height:** Tight line-height () to support information density.1
+* **Color Scheme (Light Theme):** A high-contrast, low-glare palette optimized for long periods of use.1
+    * **Backgrounds:** Primary: \#FFFFFF, Secondary Panels: \#F5F6F7.
+    * **Text:** Primary: \#1D1F23 (Charcoal), Secondary/Labels: \#5C6066 (Mid-gray).
+    * **Accents (Restrained Use):**
+        * Action Blue: \#2A7DE1 (buttons, links, focus states).
+        * Emerald Green: \#27AE60 (success, positive status like APPROVED).
+        * Amber Orange: \#F5A623 (warnings, pending status like APPROVAL\_PENDING).
+        * Crimson Red: \#D64541 (errors, critical status like REJECTED).
+    * **Borders & Dividers:** \#E0E3E6 (Neutral Divider Lines).
 
 #### **5.1.3. Component Library Specification**
 
 This section details the required states and behaviors for key UI components, providing a clear contract for their implementation.18
 
-* **Tables:**  
-  * **Structure:** Dense row height (approx. 40px). Must support column sorting and filtering.  
-  * **Styling:** Zebra-striping (\#FAFBFC and \#FFFFFF). Thin borders (\#E0E3E6).  
-  * **States:**  
-    * **Hover:** Row background changes to a light gray (\#F2F4F6).  
-    * **Selected:** Row has a persistent blue background or left border.  
-* **Forms & Inputs:**  
-  * **Structure:** Labels should be placed above the input fields. Real-time validation feedback should appear below the input.  
-  * **Styling:** Input borders: \#CED1D6.  
-  * **States:**  
-    * **Default:** Standard border.  
-    * **Focus:** Border color changes to Action Blue (\#2A7DE1) with a subtle outer glow.  
-    * **Disabled:** Background is light gray (\#F5F6F7), text is \#9CA0A6.  
-    * **Error:** Border color changes to Crimson Red (\#D64541), and an error message is displayed below.  
-* **Buttons:**  
-  * **Types:** Primary (solid Action Blue), Secondary (white background, blue border), Tertiary (text only).  
-  * **States:**  
-    * **Default:** Standard appearance.  
-    * **Hover:** Slightly darker shade for primary, light blue background for secondary/tertiary.  
-    * **Active/Pressed:** Darker shade and/or inset shadow.  
-    * **Disabled:** Grayed out, non-interactive cursor.
+* **Tables:**
+    * **Structure:** Dense row height (approx. 40px). Must support column sorting and filtering.
+    * **Styling:** Zebra-striping (\#FAFBFC and \#FFFFFF). Thin borders (\#E0E3E6).
+    * **States:**
+        * **Hover:** Row background changes to a light gray (\#F2F4F6).
+        * **Selected:** Row has a persistent blue background or left border.
+* **Forms & Inputs:**
+    * **Structure:** Labels should be placed above the input fields. Real-time validation feedback should appear below the input.
+    * **Styling:** Input borders: \#CED1D6.
+    * **States:**
+        * **Default:** Standard border.
+        * **Focus:** Border color changes to Action Blue (\#2A7DE1) with a subtle outer glow.
+        * **Disabled:** Background is light gray (\#F5F6F7), text is \#9CA0A6.
+        * **Error:** Border color changes to Crimson Red (\#D64541), and an error message is displayed below.
+* **Buttons:**
+    * **Types:** Primary (solid Action Blue), Secondary (white background, blue border), Tertiary (text only).
+    * **States:**
+        * **Default:** Standard appearance.
+        * **Hover:** Slightly darker shade for primary, light blue background for secondary/tertiary.
+        * **Active/Pressed:** Darker shade and/or inset shadow.
+        * **Disabled:** Grayed out, non-interactive cursor.
 
 #### **5.1.4. Accessibility**
 
 The application must be accessible to users with disabilities.
 
-* **Compliance:** The UI must adhere to Web Content Accessibility Guidelines (WCAG) 2.1 Level AA standards.15  
-* **Keyboard Navigation:** All interactive elements (inputs, buttons, links, table rows) must be navigable and operable using only a keyboard. Focus indicators must be clearly visible.18  
-* **Screen Reader Support:** All elements must use semantic HTML and ARIA attributes where necessary to ensure they are correctly interpreted by screen readers. All images and icons must have descriptive alt text.18  
+* **Compliance:** The UI must adhere to Web Content Accessibility Guidelines (WCAG) 2.1 Level AA standards.15
+* **Keyboard Navigation:** All interactive elements (inputs, buttons, links, table rows) must be navigable and operable using only a keyboard. Focus indicators must be clearly visible.18
+* **Screen Reader Support:** All elements must use semantic HTML and ARIA attributes where necessary to ensure they are correctly interpreted by screen readers. All images and icons must have descriptive alt text.18
 * **Color Contrast:** Text and background color combinations must meet WCAG AA contrast ratio requirements.
+
+### **5.1.5. UI Additions — Default Handling**
+
+- **Loan Detail EoD Banner:** shows current case state (IN_CURE, CONFIRMED, ACCELERATED).
+- **EoD Tab:** timeline of EoD events, cure history, approvals, generated quotes.
+- **Actions (role‑gated):** *Raise EoD*, *Confirm Default*, *Record Cure*, *Accelerate*, *Close Case*.
+- **Validation/Guardrails:** Maker/Checker enforced on confirm and accelerate; irreversible actions require explicit confirmation dialog.
+
+
 
 ### **5.2. API Specification (OpenAPI v3.0 Format)**
 
@@ -1212,23 +1568,23 @@ An OpenAPI specification file will be generated by the Cyoda AI and provided as 
 
 #### **5.2.1. General Principles**
 
-* **Data Format:** The API will exclusively accept and respond with JSON (application/json).20  
-* **Authentication:** All endpoints are protected and require a valid OAuth 2.0 Bearer Token to be passed in the Authorization header.  
-* **Naming Conventions:**  
-  * Resource URIs use plural nouns (e.g., /loans, /payments).22  
-  * URIs are lowercase and use hyphens to separate words if necessary.23  
-  * Field names in JSON payloads use camelCase.  
-* **HTTP Methods:** Standard HTTP methods are used to represent CRUD operations:  
-  * GET: Retrieve resources.  
-  * POST: Create new resources.  
-  * PUT: Update existing resources (full replacement).  
-  * DELETE: Remove resources.  
-* **Error Handling:** Errors are handled gracefully using standard HTTP status codes. Error responses will contain a consistent JSON body: { "errorCode": "string", "message": "string" }.20  
-  * 400 Bad Request: Client-side validation error.  
-  * 401 Unauthorized: Missing or invalid authentication token.  
-  * 403 Forbidden: Authenticated user does not have permission for the action.  
-  * 404 Not Found: The requested resource does not exist.  
-  * 500 Internal Server Error: A generic server-side error.
+* **Data Format:** The API will exclusively accept and respond with JSON (application/json).20
+* **Authentication:** All endpoints are protected and require a valid OAuth 2.0 Bearer Token to be passed in the Authorization header.
+* **Naming Conventions:**
+    * Resource URIs use plural nouns (e.g., /loans, /payments).22
+    * URIs are lowercase and use hyphens to separate words if necessary.23
+    * Field names in JSON payloads use camelCase.
+* **HTTP Methods:** Standard HTTP methods are used to represent CRUD operations:
+    * GET: Retrieve resources.
+    * POST: Create new resources.
+    * PUT: Update existing resources (full replacement).
+    * DELETE: Remove resources.
+* **Error Handling:** Errors are handled gracefully using standard HTTP status codes. Error responses will contain a consistent JSON body: { "errorCode": "string", "message": "string" }.20
+    * 400 Bad Request: Client-side validation error.
+    * 401 Unauthorized: Missing or invalid authentication token.
+    * 403 Forbidden: Authenticated user does not have permission for the action.
+    * 404 Not Found: The requested resource does not exist.
+    * 500 Internal Server Error: A generic server-side error.
 
 #### **5.2.2. API Endpoint Summary**
 
@@ -1249,7 +1605,18 @@ The following table provides a high-level overview of the key API endpoints for 
 | Prepare a GL batch | POST | /gl-batches?period=YYYY-MM | Initiates the process to prepare the GL batch for a given period. | Finance Manager |
 | Export a GL batch | GET | /gl-batches/{batchId}/export | Retrieves the export file (CSV/JSON) for a prepared and approved batch. | Finance Manager |
 
-## **User Stories**  
+### **5.2.3. API Endpoints — Default Handling**
+
+| Feature | Method | URI | Description | Role |
+|---|---|---|---|---|
+| List EoD events | GET | `/loans/{loanId}/defaults/events` | Paginated list of EoD events for a loan | Risk/Collections |
+| Raise EoD | POST | `/loans/{loanId}/defaults/events` | Create EoD event (manual) with type, evidence, cureDays | Loan Admin |
+| Confirm EoD | POST | `/defaults/cases/{caseId}:confirm` | Checker‑only; applies policy | Finance Manager |
+| Record Cure | POST | `/defaults/cases/{caseId}:cure` | Attach cure evidence; checker approval | Loan Admin/FM |
+| Accelerate | POST | `/defaults/cases/{caseId}:accelerate` | Compute accelerated payoff & freeze schedule | Finance Manager |
+| Close Case | POST | `/defaults/cases/{caseId}:close` | Close after cure/waiver/payoff | Risk/Collections |
+
+## **User Stories**
 
 Of course. Based on the provided specification, here are new and expanded user stories for the system administrators to cover functionality that was mentioned but not detailed in user story format.
 
@@ -1261,21 +1628,21 @@ This new epic covers the essential but previously undefined functionality of man
 
 **User Story: Create a New Party**
 
-* **As a** Clare, the Loan Administrator,  
-* **I want to** create a new Party record by entering its legal name, jurisdiction, and other key identifiers 1111.  
-* **So that** the Party is available in the system to be associated with a new loan agreement.  
-* **Acceptance Criteria:**  
-  * **Given** I am a Loan Administrator, **when** I navigate to the "Parties" section and click "Create New Party", **and** I enter a valid Legal Name and Jurisdiction, **then** the system shall create a new Party entity in the ACTIVE state2.  
-  * **Given** I am creating a new Party, **when** I attempt to save without providing a Legal Name, **then** the system shall display a validation error and prevent the Party from being created.
+* **As a** Clare, the Loan Administrator,
+* **I want to** create a new Party record by entering its legal name, jurisdiction, and other key identifiers 1111.
+* **So that** the Party is available in the system to be associated with a new loan agreement.
+* **Acceptance Criteria:**
+    * **Given** I am a Loan Administrator, **when** I navigate to the "Parties" section and click "Create New Party", **and** I enter a valid Legal Name and Jurisdiction, **then** the system shall create a new Party entity in the ACTIVE state2.
+    * **Given** I am creating a new Party, **when** I attempt to save without providing a Legal Name, **then** the system shall display a validation error and prevent the Party from being created.
 
 **User Story: View and Search for Parties**
 
-* **As a** Clare, the Loan Administrator,  
-* **I want to** view a list of all existing Parties and search for a specific Party by name.  
-* **So that** I can verify if a borrower already exists before creating a duplicate record or selecting one for a new loan.  
-* **Acceptance Criteria:**  
-  * **Given** I am a Loan Administrator, **when** I navigate to the "Parties" section, **then** I shall see a table listing all existing Parties with columns for Legal Name, LEI, and Jurisdiction3.  
-  * **Given** I am viewing the Party list, **when** I type a name into the search bar, **then** the list shall filter in real-time to show only Parties whose names match the search term.
+* **As a** Clare, the Loan Administrator,
+* **I want to** view a list of all existing Parties and search for a specific Party by name.
+* **So that** I can verify if a borrower already exists before creating a duplicate record or selecting one for a new loan.
+* **Acceptance Criteria:**
+    * **Given** I am a Loan Administrator, **when** I navigate to the "Parties" section, **then** I shall see a table listing all existing Parties with columns for Legal Name, LEI, and Jurisdiction3.
+    * **Given** I am viewing the Party list, **when** I type a name into the search bar, **then** the list shall filter in real-time to show only Parties whose names match the search term.
 
 ---
 
@@ -1285,22 +1652,22 @@ These stories add detail to the core loan management process, including the main
 
 **User Story: View Loan Dashboard**
 
-* **As a** Clare, the Loan Administrator,  
-* **I want to** see a dashboard listing all loans in the system.  
-* **So that** I can get a high-level overview of the loan portfolio and quickly navigate to a specific loan.  
-* **Acceptance Criteria:**  
-  * **Given** I am logged in, **when** I navigate to the main dashboard, **then** I shall see a paginated table of all loans.  
-  * **Given** I am viewing the loan dashboard, **then** the table shall include columns for Loan ID, Party Name, Principal, APR, Status (e.g., APPROVAL\_PENDING, ACTIVE), and Maturity Date.  
-  * **Given** I am viewing the loan dashboard, **when** I use the filter controls, **then** I can filter the list of loans by their current State (e.g., show only ACTIVE loans).
+* **As a** Clare, the Loan Administrator,
+* **I want to** see a dashboard listing all loans in the system.
+* **So that** I can get a high-level overview of the loan portfolio and quickly navigate to a specific loan.
+* **Acceptance Criteria:**
+    * **Given** I am logged in, **when** I navigate to the main dashboard, **then** I shall see a paginated table of all loans.
+    * **Given** I am viewing the loan dashboard, **then** the table shall include columns for Loan ID, Party Name, Principal, APR, Status (e.g., APPROVAL\_PENDING, ACTIVE), and Maturity Date.
+    * **Given** I am viewing the loan dashboard, **when** I use the filter controls, **then** I can filter the list of loans by their current State (e.g., show only ACTIVE loans).
 
 **User Story: Generate an Early Settlement Quote**
 
-* **As a** Clare, the Loan Administrator,  
-* **I want to** generate an early settlement quote for an active loan for a future date4.  
-* **So that** I can provide the borrower with the exact amount required to close their loan ahead of schedule.  
-* **Acceptance Criteria:**  
-  * **Given** a loan is in the ACTIVE state, **when** I select the "Generate Settlement Quote" action and provide a future settlement date, **then** the system shall calculate the total amount due, comprising the outstandingPrincipal plus all accruedInterest up to and including the specified settlement date.  
-  * **Given** a quote has been calculated, **then** the system shall create a SettlementQuote entity with a QUOTED status, the total amount due, and an expiration date5.
+* **As a** Clare, the Loan Administrator,
+* **I want to** generate an early settlement quote for an active loan for a future date4.
+* **So that** I can provide the borrower with the exact amount required to close their loan ahead of schedule.
+* **Acceptance Criteria:**
+    * **Given** a loan is in the ACTIVE state, **when** I select the "Generate Settlement Quote" action and provide a future settlement date, **then** the system shall calculate the total amount due, comprising the outstandingPrincipal plus all accruedInterest up to and including the specified settlement date.
+    * **Given** a quote has been calculated, **then** the system shall create a SettlementQuote entity with a QUOTED status, the total amount due, and an expiration date5.
 
 ---
 
@@ -1310,13 +1677,13 @@ This story addresses the specific scenario of a borrower overpaying their loan.
 
 **User Story: Process a Borrower Overpayment**
 
-* **As a** Peter, the Payment Processor,  
-* **I want to** enter a payment that is greater than the total amount outstanding on a loan.  
-* **So that** the system correctly allocates the necessary funds to close the loan and flags the excess amount for reconciliation.  
-* **Acceptance Criteria:**  
-  * **Given** I am recording a payment against an ACTIVE loan, **when** the payment amount is greater than the sum of accruedInterest and outstandingPrincipal, **then** the system shall apply funds according to the allocation waterfall to bring both balances to zero6.  
-  * **Given** the loan balances have been reduced to zero, **then** the system shall flag the remaining unallocated portion of the payment as "Excess Funds" for manual review by the finance team.  
-  * **Given** the overpayment has been fully allocated and flagged, **then** the system shall automatically transition the loan's state to SETTLED7.
+* **As a** Peter, the Payment Processor,
+* **I want to** enter a payment that is greater than the total amount outstanding on a loan.
+* **So that** the system correctly allocates the necessary funds to close the loan and flags the excess amount for reconciliation.
+* **Acceptance Criteria:**
+    * **Given** I am recording a payment against an ACTIVE loan, **when** the payment amount is greater than the sum of accruedInterest and outstandingPrincipal, **then** the system shall apply funds according to the allocation waterfall to bring both balances to zero6.
+    * **Given** the loan balances have been reduced to zero, **then** the system shall flag the remaining unallocated portion of the payment as "Excess Funds" for manual review by the finance team.
+    * **Given** the overpayment has been fully allocated and flagged, **then** the system shall automatically transition the loan's state to SETTLED7.
 
 ---
 
@@ -1326,23 +1693,23 @@ These stories provide users with the ability to view and verify the system's aut
 
 **User Story: View Interest Accrual History**
 
-* **As a** Fiona, the Finance Manager,  
-* **I want to** view a complete history of daily interest accruals for a specific loan.  
-* **So that** I can audit the interest calculation and answer detailed queries about the loan's interest balance.  
-* **Acceptance Criteria:**  
-  * **Given** I am viewing an ACTIVE loan, **when** I navigate to the "Accrual History" tab, **then** I shall see a table listing every daily Accrual record generated for that loan8.  
-  * **Given** I am viewing the accrual history, **then** the table shall include columns for Value Date, Principal Base, Accrued Amount, and Status (e.g., POSTED)999999999.
+* **As a** Fiona, the Finance Manager,
+* **I want to** view a complete history of daily interest accruals for a specific loan.
+* **So that** I can audit the interest calculation and answer detailed queries about the loan's interest balance.
+* **Acceptance Criteria:**
+    * **Given** I am viewing an ACTIVE loan, **when** I navigate to the "Accrual History" tab, **then** I shall see a table listing every daily Accrual record generated for that loan8.
+    * **Given** I am viewing the accrual history, **then** the table shall include columns for Value Date, Principal Base, Accrued Amount, and Status (e.g., POSTED)999999999.
 
 **User Story: Review GL Batch Details for Approval**
 
-* **As a** Fiona, the Finance Manager,  
-* **I want to** review the detailed, aggregated journal lines within a prepared GL Batch before approving it for export10101010.  
-* **So that** I can verify the accuracy of the financial summaries and ensure the batch is balanced before it is sent to the General Ledger.  
-* **Acceptance Criteria:**  
-  * **Given** a GLBatch is in the PREPARED state 11,  
-  * **when** I open its detailed view, **then** I shall see the full list of aggregated GL lines with their respective debit/credit amounts12.  
-  * **Given** I am viewing the GL Batch details, **then** I can see the control totals for total debits and credits and confirm they are equal13131313.  
-  * **Given** I have verified the batch details are correct, **when** I click "Approve", **then** my approval is recorded, and the system is ready for the second "checker" approval before enabling the export action.
+* **As a** Fiona, the Finance Manager,
+* **I want to** review the detailed, aggregated journal lines within a prepared GL Batch before approving it for export10101010.
+* **So that** I can verify the accuracy of the financial summaries and ensure the batch is balanced before it is sent to the General Ledger.
+* **Acceptance Criteria:**
+    * **Given** a GLBatch is in the PREPARED state 11,
+    * **when** I open its detailed view, **then** I shall see the full list of aggregated GL lines with their respective debit/credit amounts12.
+    * **Given** I am viewing the GL Batch details, **then** I can see the control totals for total debits and credits and confirm they are equal13131313.
+    * **Given** I have verified the batch details are correct, **when** I click "Approve", **then** my approval is recorded, and the system is ready for the second "checker" approval before enabling the export action.
 
 ## **Conclusions**
 
@@ -1350,36 +1717,36 @@ This specification provides a comprehensive, multi-faceted blueprint for the Com
 
 The key structural and content enhancements introduced are:
 
-1. **Business-Centric Framing:** The document begins by establishing the business purpose, value, and scope, making it immediately accessible and relevant to non-technical stakeholders.  
-2. **User-Centric Requirements:** The adoption of Epics, User Stories, and Personas grounds every functional requirement in a clear user need and benefit, ensuring the final product is fit for purpose. The inclusion of testable acceptance criteria links the specification directly to the quality assurance process.  
-3. **Formal, Unambiguous Models:** The use of industry-standard notations like ERDs, FSM diagrams, and BPMN provides a precise and unambiguous language for technical implementation. This is particularly critical for the Cyoda AI, which requires formal models to generate reliable, enterprise-grade code.  
-4. **Explicit Non-Functional Requirements:** The definition of measurable NFRs for performance, availability, security, and maintainability elevates the system from a functional prototype to a production-ready enterprise application.  
+1. **Business-Centric Framing:** The document begins by establishing the business purpose, value, and scope, making it immediately accessible and relevant to non-technical stakeholders.
+2. **User-Centric Requirements:** The adoption of Epics, User Stories, and Personas grounds every functional requirement in a clear user need and benefit, ensuring the final product is fit for purpose. The inclusion of testable acceptance criteria links the specification directly to the quality assurance process.
+3. **Formal, Unambiguous Models:** The use of industry-standard notations like ERDs, FSM diagrams, and BPMN provides a precise and unambiguous language for technical implementation. This is particularly critical for the Cyoda AI, which requires formal models to generate reliable, enterprise-grade code.
+4. **Explicit Non-Functional Requirements:** The definition of measurable NFRs for performance, availability, security, and maintainability elevates the system from a functional prototype to a production-ready enterprise application.
 5. **Clear Interface Contracts:** The detailed UI Component Guide and the formal OpenAPI specification for the REST API serve as definitive contracts for the front-end and integration teams. This decouples development efforts, reduces ambiguity, and accelerates the overall delivery timeline.
 
 By integrating these best practices, this specification is designed to mitigate common project risks such as scope creep, ambiguous requirements, and integration friction. It provides a solid foundation for building a robust, reliable, and user-friendly Loan Management System that meets the complex demands of the commercial finance domain.
 
 #### **Works cited**
 
-1. Loan Management System Specification.rtf  
-2. How to Write a Software Requirements Specification (SRS) Document, accessed on October 3, 2025, [https://www.perforce.com/blog/alm/how-write-software-requirements-specification-srs-document](https://www.perforce.com/blog/alm/how-write-software-requirements-specification-srs-document)  
-3. How to write a proper, plain requirements documentation for feature/product development? : r/ProductManagement \- Reddit, accessed on October 3, 2025, [https://www.reddit.com/r/ProductManagement/comments/16isvyp/how\_to\_write\_a\_proper\_plain\_requirements/](https://www.reddit.com/r/ProductManagement/comments/16isvyp/how_to_write_a_proper_plain_requirements/)  
-4. 10 Tips for Writing Good User Stories \- Roman Pichler, accessed on October 3, 2025, [https://www.romanpichler.com/blog/10-tips-writing-good-user-stories/](https://www.romanpichler.com/blog/10-tips-writing-good-user-stories/)  
-5. How to Write a Software Specifications Document (SSD) – Step-by-Step Guide, accessed on October 3, 2025, [https://www.instructionalsolutions.com/blog/how-to-write-a-software-specifications-document](https://www.instructionalsolutions.com/blog/how-to-write-a-software-specifications-document)  
-6. Writing Effective User Stories | User Story Tutorial \- Business Analysis Blog \- Techcanvass, accessed on October 3, 2025, [https://businessanalyst.techcanvass.com/writing-effective-user-stories/](https://businessanalyst.techcanvass.com/writing-effective-user-stories/)  
-7. 10 Best Practices in Writing Requirements, accessed on October 3, 2025, [https://archives.obm.ohio.gov/Files/Major\_Project\_Governance/Resources/Resources\_and\_Templates/04\_Plan/37\_Requirements\_10\_Best\_Practices.pdf](https://archives.obm.ohio.gov/Files/Major_Project_Governance/Resources/Resources_and_Templates/04_Plan/37_Requirements_10_Best_Practices.pdf)  
-8. User Stories and User Story Examples by Mike Cohn \- Mountain Goat Software, accessed on October 3, 2025, [https://www.mountaingoatsoftware.com/agile/user-stories](https://www.mountaingoatsoftware.com/agile/user-stories)  
-9. TDD: Writing Testable Code | by Eric Elliott | JavaScript Scene \- Medium, accessed on October 3, 2025, [https://medium.com/javascript-scene/tdd-writing-testable-code-30ac7a3bf49c](https://medium.com/javascript-scene/tdd-writing-testable-code-30ac7a3bf49c)  
-10. What are the best practices for designing an ERD? \- TutorChase, accessed on October 3, 2025, [https://www.tutorchase.com/answers/a-level/computer-science/what-are-the-best-practices-for-designing-an-erd](https://www.tutorchase.com/answers/a-level/computer-science/what-are-the-best-practices-for-designing-an-erd)  
-11. Nonfunctional Requirements: Examples, Types and Approaches \- AltexSoft, accessed on October 3, 2025, [https://www.altexsoft.com/blog/non-functional-requirements/](https://www.altexsoft.com/blog/non-functional-requirements/)  
-12. Non-functional Requirements as User Stories \- Mountain Goat Software, accessed on October 3, 2025, [https://www.mountaingoatsoftware.com/blog/non-functional-requirements-as-user-stories](https://www.mountaingoatsoftware.com/blog/non-functional-requirements-as-user-stories)  
-13. The Guide to Writing Software Requirements Specification \- 8allocate, accessed on October 3, 2025, [https://8allocate.com/blog/the-ultimate-guide-to-writing-software-requirements-specification/](https://8allocate.com/blog/the-ultimate-guide-to-writing-software-requirements-specification/)  
-14. Non-Functional Requirements Examples: a Full Guide \- Testomat.io, accessed on October 3, 2025, [https://testomat.io/blog/non-functional-requirements-examples-definition-complete-guide/](https://testomat.io/blog/non-functional-requirements-examples-definition-complete-guide/)  
-15. Architecture 101: Top 10 Non-Functional Requirements (NFRs) you Should be Aware of, accessed on October 3, 2025, [https://anjireddy-kata.medium.com/architecture-101-top-10-non-functional-requirements-nfrs-you-should-be-aware-of-c6e874bd57e0](https://anjireddy-kata.medium.com/architecture-101-top-10-non-functional-requirements-nfrs-you-should-be-aware-of-c6e874bd57e0)  
-16. Building Resilient Software: Strategies for Handling Failures and Downtime \- eTraverse, accessed on October 3, 2025, [https://etraverse.com/blog/building-resilient-software-strategies-for-handling-failures-and-downtime/](https://etraverse.com/blog/building-resilient-software-strategies-for-handling-failures-and-downtime/)  
-17. System Resilience Part 5: Commonly-Used System Resilience Techniques, accessed on October 3, 2025, [https://www.sei.cmu.edu/blog/system-resilience-part-5-commonly-used-system-resilience-techniques/](https://www.sei.cmu.edu/blog/system-resilience-part-5-commonly-used-system-resilience-techniques/)  
-18. 7 Front-End Development Best Practices for a Seamless User Experience \- Intelivita, accessed on October 3, 2025, [https://www.intelivita.com/blog/front-end-development-best-practices/](https://www.intelivita.com/blog/front-end-development-best-practices/)  
-19. Front End Development Best Practices and Trends (Part I) \- DOOR3, accessed on October 3, 2025, [https://www.door3.com/blog/front-end-development-trends-and-best-practices-part-i-from-design-to-mobile-integration](https://www.door3.com/blog/front-end-development-trends-and-best-practices-part-i-from-design-to-mobile-integration)  
-20. Best practices for REST API design \- The Stack Overflow Blog, accessed on October 3, 2025, [https://stackoverflow.blog/2020/03/02/best-practices-for-rest-api-design/](https://stackoverflow.blog/2020/03/02/best-practices-for-rest-api-design/)  
-21. How to Write API Documentation: a Best Practices Guide \- Stoplight, accessed on October 3, 2025, [https://stoplight.io/api-documentation-guide](https://stoplight.io/api-documentation-guide)  
-22. Web API Design Best Practices \- Azure Architecture Center | Microsoft Learn, accessed on October 3, 2025, [https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design](https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design)  
+1. Loan Management System Specification.rtf
+2. How to Write a Software Requirements Specification (SRS) Document, accessed on October 3, 2025, [https://www.perforce.com/blog/alm/how-write-software-requirements-specification-srs-document](https://www.perforce.com/blog/alm/how-write-software-requirements-specification-srs-document)
+3. How to write a proper, plain requirements documentation for feature/product development? : r/ProductManagement \- Reddit, accessed on October 3, 2025, [https://www.reddit.com/r/ProductManagement/comments/16isvyp/how\_to\_write\_a\_proper\_plain\_requirements/](https://www.reddit.com/r/ProductManagement/comments/16isvyp/how_to_write_a_proper_plain_requirements/)
+4. 10 Tips for Writing Good User Stories \- Roman Pichler, accessed on October 3, 2025, [https://www.romanpichler.com/blog/10-tips-writing-good-user-stories/](https://www.romanpichler.com/blog/10-tips-writing-good-user-stories/)
+5. How to Write a Software Specifications Document (SSD) – Step-by-Step Guide, accessed on October 3, 2025, [https://www.instructionalsolutions.com/blog/how-to-write-a-software-specifications-document](https://www.instructionalsolutions.com/blog/how-to-write-a-software-specifications-document)
+6. Writing Effective User Stories | User Story Tutorial \- Business Analysis Blog \- Techcanvass, accessed on October 3, 2025, [https://businessanalyst.techcanvass.com/writing-effective-user-stories/](https://businessanalyst.techcanvass.com/writing-effective-user-stories/)
+7. 10 Best Practices in Writing Requirements, accessed on October 3, 2025, [https://archives.obm.ohio.gov/Files/Major\_Project\_Governance/Resources/Resources\_and\_Templates/04\_Plan/37\_Requirements\_10\_Best\_Practices.pdf](https://archives.obm.ohio.gov/Files/Major_Project_Governance/Resources/Resources_and_Templates/04_Plan/37_Requirements_10_Best_Practices.pdf)
+8. User Stories and User Story Examples by Mike Cohn \- Mountain Goat Software, accessed on October 3, 2025, [https://www.mountaingoatsoftware.com/agile/user-stories](https://www.mountaingoatsoftware.com/agile/user-stories)
+9. TDD: Writing Testable Code | by Eric Elliott | JavaScript Scene \- Medium, accessed on October 3, 2025, [https://medium.com/javascript-scene/tdd-writing-testable-code-30ac7a3bf49c](https://medium.com/javascript-scene/tdd-writing-testable-code-30ac7a3bf49c)
+10. What are the best practices for designing an ERD? \- TutorChase, accessed on October 3, 2025, [https://www.tutorchase.com/answers/a-level/computer-science/what-are-the-best-practices-for-designing-an-erd](https://www.tutorchase.com/answers/a-level/computer-science/what-are-the-best-practices-for-designing-an-erd)
+11. Nonfunctional Requirements: Examples, Types and Approaches \- AltexSoft, accessed on October 3, 2025, [https://www.altexsoft.com/blog/non-functional-requirements/](https://www.altexsoft.com/blog/non-functional-requirements/)
+12. Non-functional Requirements as User Stories \- Mountain Goat Software, accessed on October 3, 2025, [https://www.mountaingoatsoftware.com/blog/non-functional-requirements-as-user-stories](https://www.mountaingoatsoftware.com/blog/non-functional-requirements-as-user-stories)
+13. The Guide to Writing Software Requirements Specification \- 8allocate, accessed on October 3, 2025, [https://8allocate.com/blog/the-ultimate-guide-to-writing-software-requirements-specification/](https://8allocate.com/blog/the-ultimate-guide-to-writing-software-requirements-specification/)
+14. Non-Functional Requirements Examples: a Full Guide \- Testomat.io, accessed on October 3, 2025, [https://testomat.io/blog/non-functional-requirements-examples-definition-complete-guide/](https://testomat.io/blog/non-functional-requirements-examples-definition-complete-guide/)
+15. Architecture 101: Top 10 Non-Functional Requirements (NFRs) you Should be Aware of, accessed on October 3, 2025, [https://anjireddy-kata.medium.com/architecture-101-top-10-non-functional-requirements-nfrs-you-should-be-aware-of-c6e874bd57e0](https://anjireddy-kata.medium.com/architecture-101-top-10-non-functional-requirements-nfrs-you-should-be-aware-of-c6e874bd57e0)
+16. Building Resilient Software: Strategies for Handling Failures and Downtime \- eTraverse, accessed on October 3, 2025, [https://etraverse.com/blog/building-resilient-software-strategies-for-handling-failures-and-downtime/](https://etraverse.com/blog/building-resilient-software-strategies-for-handling-failures-and-downtime/)
+17. System Resilience Part 5: Commonly-Used System Resilience Techniques, accessed on October 3, 2025, [https://www.sei.cmu.edu/blog/system-resilience-part-5-commonly-used-system-resilience-techniques/](https://www.sei.cmu.edu/blog/system-resilience-part-5-commonly-used-system-resilience-techniques/)
+18. 7 Front-End Development Best Practices for a Seamless User Experience \- Intelivita, accessed on October 3, 2025, [https://www.intelivita.com/blog/front-end-development-best-practices/](https://www.intelivita.com/blog/front-end-development-best-practices/)
+19. Front End Development Best Practices and Trends (Part I) \- DOOR3, accessed on October 3, 2025, [https://www.door3.com/blog/front-end-development-trends-and-best-practices-part-i-from-design-to-mobile-integration](https://www.door3.com/blog/front-end-development-trends-and-best-practices-part-i-from-design-to-mobile-integration)
+20. Best practices for REST API design \- The Stack Overflow Blog, accessed on October 3, 2025, [https://stackoverflow.blog/2020/03/02/best-practices-for-rest-api-design/](https://stackoverflow.blog/2020/03/02/best-practices-for-rest-api-design/)
+21. How to Write API Documentation: a Best Practices Guide \- Stoplight, accessed on October 3, 2025, [https://stoplight.io/api-documentation-guide](https://stoplight.io/api-documentation-guide)
+22. Web API Design Best Practices \- Azure Architecture Center | Microsoft Learn, accessed on October 3, 2025, [https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design](https://learn.microsoft.com/en-us/azure/architecture/best-practices/api-design)
 23. REST API Best Practices, accessed on October 3, 2025, [https://restfulapi.net/rest-api-best-practices/](https://restfulapi.net/rest-api-best-practices/)
