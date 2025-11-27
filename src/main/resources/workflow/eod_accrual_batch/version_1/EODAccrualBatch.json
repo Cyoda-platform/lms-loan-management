@@ -58,6 +58,35 @@
     "VALIDATION_ERROR": {
       "transitions": [
         {
+          "name": "START",
+          "next": "VALIDATED",
+          "manual": true,
+          "criterion": {
+            "type": "function",
+            "function": {
+              "name": "EODAccrualBatchValidationCriterion",
+              "config": {
+                "attachEntity": true,
+                "calculationNodesTags": "cyoda_application",
+                "responseTimeoutMs": 20000,
+                "retryPolicy": "FIXED"
+              }
+            }
+          },
+          "processors": [
+            {
+              "name": "ClearValidationErrorReasonProcessor",
+              "executionMode": "SYNC",
+              "config": {
+                "attachEntity": true,
+                "calculationNodesTags": "cyoda_application",
+                "responseTimeoutMs": 20000,
+                "retryPolicy": "FIXED"
+              }
+            }
+          ]
+        },
+        {
           "name": "FIX",
           "next": "REQUESTED",
           "manual": true,
@@ -110,8 +139,8 @@
     "SNAPSHOT_TAKEN": {
       "transitions": [
         {
-          "name": "GENERATE_ACCRUALS",
-          "next": "GENERATING",
+          "name": "SPAWN_ACCRUALS",
+          "next": "SPAWNING",
           "manual": false,
           "processors": [
             {
@@ -121,6 +150,27 @@
                 "attachEntity": true,
                 "calculationNodesTags": "cyoda_application",
                 "responseTimeoutMs": 200000,
+                "retryPolicy": "FIXED"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "SPAWNING": {
+      "transitions": [
+        {
+          "name": "WAIT_FOR_VISIBILITY",
+          "next": "GENERATING",
+          "manual": false,
+          "processors": [
+            {
+              "name": "WaitForAccrualsVisible",
+              "executionMode": "SYNC",
+              "config": {
+                "attachEntity": true,
+                "calculationNodesTags": "cyoda_application",
+                "responseTimeoutMs": 20000,
                 "retryPolicy": "FIXED"
               }
             }
@@ -223,6 +273,27 @@
     "RECONCILING": {
       "transitions": [
         {
+          "name": "PRODUCE_REPORT",
+          "next": "REPORT_GENERATED",
+          "manual": false,
+          "processors": [
+            {
+              "name": "ProduceReconciliationReport",
+              "executionMode": "ASYNC_NEW_TX",
+              "config": {
+                "attachEntity": true,
+                "calculationNodesTags": "cyoda_application",
+                "responseTimeoutMs": 20000,
+                "retryPolicy": "FIXED"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "REPORT_GENERATED": {
+      "transitions": [
+        {
           "name": "FINALIZE",
           "next": "COMPLETED",
           "manual": false,
@@ -237,19 +308,7 @@
                 "retryPolicy": "FIXED"
               }
             }
-          },
-          "processors": [
-            {
-              "name": "ProduceReconciliationReport",
-              "executionMode": "ASYNC_NEW_TX",
-              "config": {
-                "attachEntity": true,
-                "calculationNodesTags": "cyoda_application",
-                "responseTimeoutMs": 20000,
-                "retryPolicy": "FIXED"
-              }
-            }
-          ]
+          }
         }
       ]
     },

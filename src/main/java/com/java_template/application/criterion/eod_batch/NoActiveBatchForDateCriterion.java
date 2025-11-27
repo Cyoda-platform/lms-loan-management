@@ -38,10 +38,8 @@ public class NoActiveBatchForDateCriterion implements CyodaCriterion {
     private final CriterionSerializer serializer;
     private final EntityService entityService;
 
-    private static final Set<EODAccrualBatchState> TERMINAL_STATES = Set.of(
-        EODAccrualBatchState.COMPLETED,
-        EODAccrualBatchState.FAILED,
-        EODAccrualBatchState.CANCELED
+    private static final Set<String> TERMINAL_WORKFLOW_STATES = Set.of(
+        "COMPLETED", "FAILED", "CANCELED", "ERROR"
     );
 
     public NoActiveBatchForDateCriterion(SerializerFactory serializerFactory, EntityService entityService) {
@@ -88,6 +86,17 @@ public class NoActiveBatchForDateCriterion implements CyodaCriterion {
             return EvaluationOutcome.fail("AsOfDate is required", StandardEvalReasonCategories.STRUCTURAL_FAILURE);
         }
 
+        // Check if batchId is null (should be initialized before validation)
+        if (batch.getBatchId() == null) {
+            logger.warn("BatchId is null for batch with asOfDate: {}. This indicates the batch was not properly initialized.", asOfDate);
+            return EvaluationOutcome.fail(
+                "Batch ID is required for validation. The batch entity must be initialized with a batchId before validation.",
+                StandardEvalReasonCategories.STRUCTURAL_FAILURE
+            );
+        }
+
+        logger.info("Checking for active batches with asOfDate: {} (current batch: {})", asOfDate, batch.getBatchId());
+
         // Query for all batches with the same asOfDate
         ModelSpec batchModelSpec = new ModelSpec()
             .withName(EODAccrualBatch.ENTITY_NAME)
@@ -96,23 +105,52 @@ public class NoActiveBatchForDateCriterion implements CyodaCriterion {
         List<EntityWithMetadata<EODAccrualBatch>> existingBatchesWithMetadata =
             entityService.findAll(batchModelSpec, EODAccrualBatch.class);
 
+        logger.info("Found {} total batches in system", existingBatchesWithMetadata.size());
+
         // Filter for batches with same asOfDate and non-terminal states
-        long activeBatchCount = existingBatchesWithMetadata.stream()
-            .filter(b -> asOfDate.equals(b.entity().getAsOfDate()))
-            .filter(b -> !batch.getBatchId().equals(b.entity().getBatchId())) // Exclude current batch
-            .filter(b -> !TERMINAL_STATES.contains(EODAccrualBatchState.valueOf(b.getState())))
-            .count();
+        // Safely handle null batchIds in existing batches as well
+        List<EntityWithMetadata<EODAccrualBatch>> conflictingBatches = existingBatchesWithMetadata.stream()
+            .filter(b -> {
+                // Skip batches with null asOfDate
+                if (b.entity().getAsOfDate() == null) {
+                    logger.debug("Skipping batch with null asOfDate in validation check");
+                    return false;
+                }
+                return asOfDate.equals(b.entity().getAsOfDate());
+            })
+            .filter(b -> {
+                // Exclude current batch (safely handle null batchIds)
+                if (b.entity().getBatchId() == null) {
+                    logger.debug("Skipping batch with null batchId in validation check");
+                    return false;
+                }
+                return !batch.getBatchId().equals(b.entity().getBatchId());
+            })
+            .filter(b -> !TERMINAL_WORKFLOW_STATES.contains(b.metadata().getState()))
+            .toList();
+
+        long activeBatchCount = conflictingBatches.size();
 
         if (activeBatchCount > 0) {
             logger.warn("Found {} active batch(es) for asOfDate {} (excluding current batch {})",
                 activeBatchCount, asOfDate, batch.getBatchId());
+
+            // Log details of conflicting batches
+            for (EntityWithMetadata<EODAccrualBatch> conflictingBatch : conflictingBatches) {
+                logger.warn("  Conflicting batch: id={}, batchId={}, state={}, asOfDate={}",
+                    conflictingBatch.metadata().getId(),
+                    conflictingBatch.entity().getBatchId(),
+                    conflictingBatch.metadata().getState(),
+                    conflictingBatch.entity().getAsOfDate());
+            }
+
             return EvaluationOutcome.fail(
                 String.format("Another active batch already exists for asOfDate %s", asOfDate),
                 StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
             );
         }
 
-        logger.debug("No active batches found for asOfDate {} (batch: {})", asOfDate, batch.getBatchId());
+        logger.info("No active batches found for asOfDate {} (batch: {})", asOfDate, batch.getBatchId());
         return EvaluationOutcome.success();
     }
 }

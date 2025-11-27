@@ -97,30 +97,50 @@ public class AllAccrualsPostedCriterion implements CyodaCriterion {
                 .withName(Accrual.ENTITY_NAME)
                 .withVersion(Accrual.ENTITY_VERSION);
 
-            List<EntityWithMetadata<Accrual>> batchAccrualsWithMetadata =
+            List<EntityWithMetadata<Accrual>> allAccrualsWithMetadata =
                 entityService.findAll(accrualModelSpec, Accrual.class);
 
-            List<Accrual> batchAccruals = batchAccrualsWithMetadata.stream()
-                .map(EntityWithMetadata::entity)
+            logger.debug("Found {} total accruals in system for batch check", allAccrualsWithMetadata.size());
+
+            // Filter for accruals belonging to this batch (with metadata)
+            List<EntityWithMetadata<Accrual>> relevantAccrualsWithMetadata = allAccrualsWithMetadata.stream()
+                .filter(a -> {
+                    Accrual accrual = a.entity();
+                    boolean matches = accrual != null && batchId.toString().equals(accrual.getRunId());
+                    if (accrual != null && !matches) {
+                        logger.trace("Accrual {} has runId {} (looking for {})",
+                            accrual.getAccrualId(), accrual.getRunId(), batchId.toString());
+                    }
+                    return matches;
+                })
                 .toList();
 
-            // Filter for accruals belonging to this batch
-            List<Accrual> relevantAccruals = batchAccruals.stream()
-                .filter(a -> batchId.toString().equals(a.getRunId()))
-                .toList();
+            if (relevantAccrualsWithMetadata.isEmpty()) {
+                // Check if batch metrics indicate accruals should exist
+                Integer expectedAccruals = batch.getMetrics() != null ? batch.getMetrics().getAccrualsCreated() : null;
 
-            if (relevantAccruals.isEmpty()) {
-                // No accruals found yet - batch may still be in early stages
-                logger.debug("No accruals found for batch: {}", batchId);
-                return EvaluationOutcome.fail(
-                    "No accruals have been created for this batch yet",
-                    StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
-                );
+                if (expectedAccruals != null && expectedAccruals > 0) {
+                    // Batch says accruals were created, but we can't find them yet
+                    logger.debug("Batch {} reports {} accruals created, but none found yet in query (searched {} total accruals). Accruals may still be committing.",
+                        batchId, expectedAccruals, allAccrualsWithMetadata.size());
+                    return EvaluationOutcome.fail(
+                        String.format("Batch reports %d accruals created, but they are not yet visible in the database", expectedAccruals),
+                        StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
+                    );
+                } else {
+                    // No accruals found and batch doesn't report any created yet
+                    logger.debug("No accruals found for batch: {} (searched {} total accruals)",
+                        batchId, allAccrualsWithMetadata.size());
+                    return EvaluationOutcome.fail(
+                        "No accruals have been created for this batch yet",
+                        StandardEvalReasonCategories.BUSINESS_RULE_FAILURE
+                    );
+                }
             }
 
             // Check if all accruals are in terminal states
-            long totalAccruals = relevantAccruals.size();
-            long terminalAccruals = batchAccrualsWithMetadata.stream()
+            long totalAccruals = relevantAccrualsWithMetadata.size();
+            long terminalAccruals = relevantAccrualsWithMetadata.stream()
                 .filter(a -> TERMINAL_STATES.contains(a.getState()))
                 .count();
 
@@ -135,10 +155,10 @@ public class AllAccrualsPostedCriterion implements CyodaCriterion {
             }
 
             // Count by state for logging
-            long posted = batchAccrualsWithMetadata.stream().filter(a -> AccrualState.valueOf(a.getState()) == AccrualState.POSTED).count();
-            long failed = batchAccrualsWithMetadata.stream().filter(a -> AccrualState.valueOf(a.getState()) == AccrualState.FAILED).count();
-            long canceled = batchAccrualsWithMetadata.stream().filter(a -> AccrualState.valueOf(a.getState()) == AccrualState.CANCELED).count();
-            long superseded = batchAccrualsWithMetadata.stream().filter(a -> AccrualState.valueOf(a.getState()) == AccrualState.SUPERSEDED).count();
+            long posted = relevantAccrualsWithMetadata.stream().filter(a -> AccrualState.valueOf(a.getState()) == AccrualState.POSTED).count();
+            long failed = relevantAccrualsWithMetadata.stream().filter(a -> AccrualState.valueOf(a.getState()) == AccrualState.FAILED).count();
+            long canceled = relevantAccrualsWithMetadata.stream().filter(a -> AccrualState.valueOf(a.getState()) == AccrualState.CANCELED).count();
+            long superseded = relevantAccrualsWithMetadata.stream().filter(a -> AccrualState.valueOf(a.getState()) == AccrualState.SUPERSEDED).count();
 
             logger.info("All {} accruals for batch {} are complete: {} posted, {} failed, {} canceled, {} superseded",
                 totalAccruals, batchId, posted, failed, canceled, superseded);

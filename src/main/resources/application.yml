@@ -1,6 +1,11 @@
 logging:
   level:
     root: INFO
+    com.java_template.application.processor.accrual: DEBUG
+    com.java_template.application.processor.eod_batch: DEBUG
+    com.java_template.application.criterion.accrual: DEBUG
+    com.java_template.application.criterion.eod_batch: DEBUG
+
 
 server:
   port: 8080
@@ -17,3 +22,4 @@ springdoc:
     try-it-out-enabled: true
     csrf:
       enabled: false
+

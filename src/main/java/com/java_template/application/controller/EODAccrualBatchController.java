@@ -1,8 +1,10 @@
 package com.java_template.application.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.java_template.application.controller.dto.CreateBatchWithTransitionRequest;
 import com.java_template.application.controller.support.EntityCrudOperations;
 import com.java_template.application.controller.support.EntityCrudOperations.FieldFilter;
+import com.java_template.application.entity.accrual.version_1.BatchMetrics;
 import com.java_template.application.entity.accrual.version_1.BatchMode;
 import com.java_template.application.entity.accrual.version_1.EODAccrualBatch;
 import com.java_template.common.dto.EntityWithMetadata;
@@ -32,8 +34,10 @@ public class EODAccrualBatchController {
 
     private static final Logger logger = LoggerFactory.getLogger(EODAccrualBatchController.class);
     private final EntityCrudOperations<EODAccrualBatch> crudOps;
+    private final EntityService entityService;
 
     public EODAccrualBatchController(EntityService entityService, ObjectMapper objectMapper) {
+        this.entityService = entityService;
         this.crudOps = new EntityCrudOperations<>(
                 entityService,
                 objectMapper,
@@ -46,12 +50,156 @@ public class EODAccrualBatchController {
     }
 
     /**
-     * Create a new EOD accrual batch
+     * Create a new EOD accrual batch (simple format - backward compatible).
      * POST /ui/eod-batches
+     *
+     * <p>Accepts a direct EODAccrualBatch JSON at the root level.</p>
+     * <p>The batch will be created in the initial state (REQUESTED).</p>
+     *
+     * <p>Example request body:</p>
+     * <pre>
+     * {
+     *   "asOfDate": "2025-10-21",
+     *   "mode": "TODAY",
+     *   "initiatedBy": "user123",
+     *   "metrics": {}
+     * }
+     * </pre>
+     *
+     * <p>To create a batch and immediately trigger a workflow transition,
+     * use the /ui/eod-batches/with-transition endpoint instead.</p>
+     *
+     * @param batch The batch entity to create
+     * @return ResponseEntity with created batch and metadata
      */
     @PostMapping
     public ResponseEntity<EntityWithMetadata<EODAccrualBatch>> createBatch(@RequestBody EODAccrualBatch batch) {
+        // Initialize batchId if not provided
+        if (batch.getBatchId() == null) {
+            batch.setBatchId(java.util.UUID.randomUUID());
+            logger.debug("Generated batchId: {}", batch.getBatchId());
+        }
+
+        // Initialize initiatedBy if not provided (required field)
+        if (batch.getInitiatedBy() == null || batch.getInitiatedBy().trim().isEmpty()) {
+            batch.setInitiatedBy("system");
+            logger.debug("Set default initiatedBy: system for batch {}", batch.getBatchId());
+        }
+
+        // Initialize metrics if not provided (required field)
+        if (batch.getMetrics() == null) {
+            batch.setMetrics(new BatchMetrics());
+            logger.debug("Initialized empty metrics for batch {}", batch.getBatchId());
+        }
+
         return crudOps.createWithoutDuplicateCheck(batch, null);
+    }
+
+    /**
+     * Create a new EOD accrual batch with immediate workflow transition.
+     * POST /ui/eod-batches/with-transition
+     *
+     * <p>This endpoint accepts a wrapped request structure that includes:</p>
+     * <ul>
+     *   <li>The batch entity to create</li>
+     *   <li>An optional workflow transition to execute immediately after creation</li>
+     *   <li>Optional engine options (not yet implemented in workflow engine)</li>
+     * </ul>
+     *
+     * <p>Example request body:</p>
+     * <pre>
+     * {
+     *   "batch": {
+     *     "asOfDate": "2025-10-21",
+     *     "mode": "TODAY",
+     *     "initiatedBy": "user123",
+     *     "metrics": {}
+     *   },
+     *   "transitionRequest": {
+     *     "name": "START",
+     *     "comment": "Starting daily accrual run"
+     *   },
+     *   "engineOptions": {
+     *     "simulate": false,
+     *     "maxSteps": 50
+     *   }
+     * }
+     * </pre>
+     *
+     * <p>If the transition fails, the batch will still be created but will remain
+     * in the initial state (REQUESTED). The response will contain the created batch.</p>
+     *
+     * @param request The wrapped request containing batch, transition, and options
+     * @return ResponseEntity with created (and possibly transitioned) batch and metadata
+     */
+    @PostMapping("/with-transition")
+    public ResponseEntity<EntityWithMetadata<EODAccrualBatch>> createBatchWithTransition(
+            @RequestBody CreateBatchWithTransitionRequest request) {
+
+        // Extract the batch entity from the request
+        EODAccrualBatch batch = request.getBatch();
+
+        if (batch == null) {
+            logger.error("Batch entity is null in request");
+            return ResponseEntity.badRequest().build();
+        }
+
+        // Initialize batchId if not provided
+        if (batch.getBatchId() == null) {
+            batch.setBatchId(java.util.UUID.randomUUID());
+            logger.debug("Generated batchId: {}", batch.getBatchId());
+        }
+
+        // Initialize initiatedBy if not provided (required field)
+        if (batch.getInitiatedBy() == null || batch.getInitiatedBy().trim().isEmpty()) {
+            batch.setInitiatedBy("system");
+            logger.debug("Set default initiatedBy: system for batch {}", batch.getBatchId());
+        }
+
+        // Initialize metrics if not provided (required field)
+        if (batch.getMetrics() == null) {
+            batch.setMetrics(new BatchMetrics());
+            logger.debug("Initialized empty metrics for batch {}", batch.getBatchId());
+        }
+
+        // Create the batch entity
+        EntityWithMetadata<EODAccrualBatch> createdBatch = crudOps.createWithoutDuplicateCheck(batch, null).getBody();
+
+        if (createdBatch == null) {
+            logger.error("Failed to create batch");
+            return ResponseEntity.internalServerError().build();
+        }
+
+        // If a transition is requested, execute it
+        if (request.getTransitionRequest() != null && request.getTransitionRequest().getName() != null) {
+            String transitionName = request.getTransitionRequest().getName();
+            logger.info("Executing transition '{}' on newly created batch {}",
+                    transitionName, createdBatch.metadata().getId());
+
+            try {
+                // Execute the transition using the entity service
+                EntityWithMetadata<EODAccrualBatch> transitionedBatch = entityService.update(
+                        createdBatch.metadata().getId(),
+                        createdBatch.entity(),
+                        transitionName
+                );
+
+                logger.info("Successfully transitioned batch {} to state: {}",
+                        transitionedBatch.metadata().getId(),
+                        transitionedBatch.metadata().getState());
+
+                return ResponseEntity.ok(transitionedBatch);
+            } catch (Exception e) {
+                logger.error("Failed to execute transition '{}' on batch {}: {}",
+                        transitionName, createdBatch.metadata().getId(), e.getMessage(), e);
+                // Return the created batch even if transition fails
+                // The batch exists but is in the initial state
+                return ResponseEntity.ok(createdBatch);
+            }
+        }
+
+        // No transition requested, return the created batch
+        return ResponseEntity.ok(createdBatch);
     }
 
     /**

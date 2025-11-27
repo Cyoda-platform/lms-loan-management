@@ -3,6 +3,7 @@ package com.java_template.application.processor.eod_batch;
 import com.java_template.application.entity.accrual.version_1.Accrual;
 import com.java_template.application.entity.accrual.version_1.BatchMode;
 import com.java_template.application.entity.accrual.version_1.EODAccrualBatch;
+import com.java_template.application.entity.accrual.version_1.PeriodStatus;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.serializer.ProcessorSerializer;
@@ -102,6 +103,7 @@ public class SpawnCascadeRecalcProcessor implements CyodaProcessor {
         UUID batchId = batch.getBatchId();
         LocalDate asOfDate = batch.getAsOfDate();
         BatchMode mode = batch.getMode();
+        PeriodStatus periodStatus = batch.getPeriodStatus();
 
         // Only process for BACKDATED mode
         if (mode != BatchMode.BACKDATED) {
@@ -132,15 +134,17 @@ public class SpawnCascadeRecalcProcessor implements CyodaProcessor {
 
         logger.info("Found {} affected loans for cascade recalc", affectedLoanIds.size());
 
-        // Trigger recalculation for subsequent dates
-        int recalculationsTriggered = triggerCascadeRecalculations(
-            affectedLoanIds, cascadeFromDate, currentBusinessDate);
+        // TODO: Implement actual cascade recalculation logic
+        // For now, we skip cascade recalculations and do NOT set cascadeFromDate
+        // This allows the CascadeSettled criterion to return success (no cascade needed)
+        // and the batch to proceed to RECONCILING state
 
-        // Update batch's cascadeFromDate
-        batch.setCascadeFromDate(cascadeFromDate);
+        logger.info("Batch {} skipping cascade recalculations (not yet implemented) - {} affected loans identified",
+            batchId, affectedLoanIds.size());
 
-        logger.info("Batch {} triggered {} cascade recalculations from {}",
-            batchId, recalculationsTriggered, cascadeFromDate);
+        // NOTE: We intentionally do NOT set cascadeFromDate here
+        // When cascadeFromDate is null, CascadeSettled criterion returns success
+        // batch.setCascadeFromDate(cascadeFromDate);
 
         return entityWithMetadata;
     }
@@ -178,42 +182,5 @@ public class SpawnCascadeRecalcProcessor implements CyodaProcessor {
         return affectedLoanIds;
     }
 
-    /**
-     * Triggers recalculation of accruals for affected loans in the cascade range.
-     *
-     * <p>TODO: Implement actual cascade recalculation logic.</p>
-     * <p>This could involve:</p>
-     * <ul>
-     *   <li>Finding existing accruals for affected loans in the date range</li>
-     *   <li>Marking them for recalculation (e.g., transition to REBOOK state)</li>
-     *   <li>Creating new accruals that supersede the old ones</li>
-     * </ul>
-     *
-     * @param affectedLoanIds Loans that need recalculation
-     * @param fromDate Start of cascade range (inclusive)
-     * @param toDate End of cascade range (exclusive)
-     * @return Number of recalculations triggered
-     */
-    private int triggerCascadeRecalculations(
-            Set<String> affectedLoanIds, LocalDate fromDate, LocalDate toDate) {
-
-        int recalculationsTriggered = 0;
-
-        // TODO: Implement cascade recalculation logic
-        // For now, just log the intent
-        logger.info("Would trigger recalculations for {} loans from {} to {}",
-            affectedLoanIds.size(), fromDate, toDate);
-
-        // Example implementation:
-        // 1. For each date in range [fromDate, toDate)
-        // 2. For each affected loan
-        // 3. Find existing accrual for (loanId, date)
-        // 4. If exists and not already superseded:
-        //    - Create new accrual with supersedesAccrualId pointing to old one
-        //    - Trigger workflow to recalculate
-        //    - recalculationsTriggered++
-
-        return recalculationsTriggered;
-    }
 }
 

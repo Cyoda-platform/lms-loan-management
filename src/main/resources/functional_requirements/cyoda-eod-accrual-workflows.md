@@ -262,13 +262,22 @@ Date: 2025‑10‑06
     "RECONCILING": {
       "transitions": [
         {
-          "name": "FINALIZE",
-          "next": "COMPLETED",
+          "name": "PRODUCE_REPORT",
+          "next": "REPORT_GENERATED",
           "manual": false,
-          "criterion": { "type": "function", "function": { "name": "BatchBalanced", "config": { "attachEntity": true } } },
           "processors": [
             { "name": "ProduceReconciliationReport", "executionMode": "ASYNC_NEW_TX", "config": { "attachEntity": true, "calculationNodesTags": "ledger" } }
           ]
+        }
+      ]
+    },
+    "REPORT_GENERATED": {
+      "transitions": [
+        {
+          "name": "FINALIZE",
+          "next": "COMPLETED",
+          "manual": false,
+          "criterion": { "type": "function", "function": { "name": "BatchBalanced", "config": { "attachEntity": true } } }
         }
       ]
     },
@@ -452,7 +461,7 @@ The API exposes **entity save** (create/patch) and **fetch** endpoints. There ar
   "cascadeFromDate": "YYYY-MM-DD|null",
   "metrics": { "eligibleLoans": 0, "processedLoans": 0, "accrualsCreated": 0, "postings": 0, "debited": 0.0, "credited": 0.0, "imbalances": 0 },
   "reportId": "UUID|null",
-  "state": "REQUESTED|VALIDATED|SNAPSHOT_TAKEN|GENERATING|POSTING_COMPLETE|CASCADING|RECONCILING|COMPLETED|FAILED|CANCELED"
+  "state": "REQUESTED|VALIDATED|SNAPSHOT_TAKEN|GENERATING|POSTING_COMPLETE|CASCADING|RECONCILING|REPORT_GENERATED|COMPLETED|FAILED|CANCELED"
 }
 ```
 

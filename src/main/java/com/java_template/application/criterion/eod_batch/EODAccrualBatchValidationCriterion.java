@@ -61,35 +61,94 @@ public class EODAccrualBatchValidationCriterion implements CyodaCriterion {
     public EvaluationOutcome validateEntity(CriterionSerializer.CriterionEntityEvaluationContext<EODAccrualBatch> context) {
         EODAccrualBatch batch = context.entityWithMetadata().entity();
 
-        // Check 1: Is business day
-        // Note: IsBusinessDayCriterion expects Accrual, but we need to adapt it for EODAccrualBatch
-        // For now, we'll create a temporary Accrual-like context
-        CriterionSerializer.CriterionEntityEvaluationContext<com.java_template.application.entity.accrual.version_1.Accrual> accrualContext =
-            createAccrualContextFromBatch(context);
-        EvaluationOutcome businessDayOutcome = isBusinessDayCriterion.validateBusinessDay(accrualContext);
+        // Check -1: Validate batch entity is not null
+        if (batch == null) {
+            logger.error("Batch entity is null in validation context");
+            return EvaluationOutcome.fail("Batch entity is null", StandardEvalReasonCategories.STRUCTURAL_FAILURE);
+        }
+
+        logger.info("Starting validation for batch: {} with asOfDate: {}, mode: {}, initiatedBy: {}",
+            batch.getBatchId(), batch.getAsOfDate(), batch.getMode(), batch.getInitiatedBy());
+
+        // Check 0: Validate batchId is present before other checks
+        if (batch.getBatchId() == null) {
+            logger.warn("BatchId is null for batch with asOfDate: {}. This indicates the batch was not properly initialized.", batch.getAsOfDate());
+            return EvaluationOutcome.fail(
+                "Batch ID is required for validation. The batch entity must be initialized with a batchId before validation.",
+                StandardEvalReasonCategories.STRUCTURAL_FAILURE
+            );
+        }
+
+        // Check 1: Validate asOfDate is present before other checks
+        if (batch.getAsOfDate() == null) {
+            logger.warn("AsOfDate is null for batch: {}", batch.getBatchId());
+            return EvaluationOutcome.fail("AsOfDate is required", StandardEvalReasonCategories.STRUCTURAL_FAILURE);
+        }
+
+        // Check 2: Is business day
+        logger.info("Check 2: Validating business day for batch: {} with asOfDate: {}", batch.getBatchId(), batch.getAsOfDate());
+        EvaluationOutcome businessDayOutcome;
+        try {
+            CriterionSerializer.CriterionEntityEvaluationContext<com.java_template.application.entity.accrual.version_1.Accrual> accrualContext =
+                createAccrualContextFromBatch(context);
+            businessDayOutcome = isBusinessDayCriterion.validateBusinessDay(accrualContext);
+        } catch (Exception e) {
+            logger.error("Error during business day validation for batch: {}", batch.getBatchId(), e);
+            return EvaluationOutcome.fail(
+                "Business day validation failed with error: " + e.getMessage(),
+                StandardEvalReasonCategories.STRUCTURAL_FAILURE
+            );
+        }
 
         if (businessDayOutcome != null && businessDayOutcome.isFailure()) {
-            logger.debug("Business day validation failed for batch: {}", batch.getBatchId());
+            logger.warn("Check 2 FAILED: Business day validation failed for batch: {} - {}",
+                batch.getBatchId(), businessDayOutcome);
             return businessDayOutcome;
         }
+        logger.info("Check 2 PASSED: Business day validation succeeded for batch: {}", batch.getBatchId());
 
-        // Check 2: No active batch for date
-        EvaluationOutcome noActiveBatchOutcome = noActiveBatchForDateCriterion.validateNoActiveBatch(context);
+        // Check 3: No active batch for date
+        logger.info("Check 3: Validating no active batch for date for batch: {}", batch.getBatchId());
+        EvaluationOutcome noActiveBatchOutcome;
+        try {
+            noActiveBatchOutcome = noActiveBatchForDateCriterion.validateNoActiveBatch(context);
+        } catch (Exception e) {
+            logger.error("Error during no active batch validation for batch: {}", batch.getBatchId(), e);
+            return EvaluationOutcome.fail(
+                "No active batch validation failed with error: " + e.getMessage(),
+                StandardEvalReasonCategories.STRUCTURAL_FAILURE
+            );
+        }
 
         if (noActiveBatchOutcome != null && noActiveBatchOutcome.isFailure()) {
-            logger.debug("No active batch validation failed for batch: {}", batch.getBatchId());
+            logger.warn("Check 3 FAILED: No active batch validation failed for batch: {} - {}",
+                batch.getBatchId(), noActiveBatchOutcome);
             return noActiveBatchOutcome;
         }
+        logger.info("Check 3 PASSED: No active batch validation succeeded for batch: {}", batch.getBatchId());
 
-        // Check 3: User has permission
-        EvaluationOutcome userPermissionOutcome = userHasPermissionCriterion.validateUserPermission(context);
-
-        if (userPermissionOutcome != null && userPermissionOutcome.isFailure()) {
-            logger.debug("User permission validation failed for batch: {}", batch.getBatchId());
-            return userPermissionOutcome;
+        // Check 4: User has permission
+        logger.info("Check 4: Validating user permission for batch: {} with initiatedBy: {}",
+            batch.getBatchId(), batch.getInitiatedBy());
+        EvaluationOutcome userPermissionOutcome;
+        try {
+            userPermissionOutcome = userHasPermissionCriterion.validateUserPermission(context);
+        } catch (Exception e) {
+            logger.error("Error during user permission validation for batch: {}", batch.getBatchId(), e);
+            return EvaluationOutcome.fail(
+                "User permission validation failed with error: " + e.getMessage(),
+                StandardEvalReasonCategories.STRUCTURAL_FAILURE
+            );
         }
 
-        logger.debug("All EOD batch validations passed for batch: {}", batch.getBatchId());
+        if (userPermissionOutcome != null && userPermissionOutcome.isFailure()) {
+            logger.warn("Check 4 FAILED: User permission validation failed for batch: {} - {}",
+                batch.getBatchId(), userPermissionOutcome);
+            return userPermissionOutcome;
+        }
+        logger.info("Check 4 PASSED: User permission validation succeeded for batch: {}", batch.getBatchId());
+
+        logger.info("ALL CHECKS PASSED: All EOD batch validations passed for batch: {}", batch.getBatchId());
         return EvaluationOutcome.success();
     }
 

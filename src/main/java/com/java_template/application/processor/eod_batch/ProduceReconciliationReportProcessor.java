@@ -164,11 +164,17 @@ public class ProduceReconciliationReportProcessor implements CyodaProcessor {
                 continue;
             }
 
+            // Count this accrual as processed (has journal entries)
+            data.processedLoans++;
+
             for (JournalEntry entry : entries) {
                 BigDecimal amount = entry.getAmount();
                 if (amount == null) {
                     continue;
                 }
+
+                // Count each journal entry as a posting
+                data.postings++;
 
                 if ("DR".equals(entry.getDirection())) {
                     data.totalDebits = data.totalDebits.add(amount);
@@ -230,6 +236,8 @@ public class ProduceReconciliationReportProcessor implements CyodaProcessor {
             batch.setMetrics(metrics);
         }
 
+        metrics.setProcessedLoans(data.processedLoans);
+        metrics.setPostings(data.postings);
         metrics.setDebited(data.totalDebits);
         metrics.setCredited(data.totalCredits);
         metrics.setImbalances(data.imbalances);
@@ -239,6 +247,8 @@ public class ProduceReconciliationReportProcessor implements CyodaProcessor {
      * Internal class to hold reconciliation data.
      */
     private static class ReconciliationData {
+        int processedLoans = 0;
+        int postings = 0;
         BigDecimal totalDebits = BigDecimal.ZERO;
         BigDecimal totalCredits = BigDecimal.ZERO;
         int imbalances = 0;

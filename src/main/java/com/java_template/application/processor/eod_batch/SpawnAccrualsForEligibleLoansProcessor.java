@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java_template.application.entity.accrual.version_1.Accrual;
 import com.java_template.application.entity.accrual.version_1.AccrualState;
 import com.java_template.application.entity.accrual.version_1.BatchMetrics;
+import com.java_template.application.entity.accrual.version_1.DayCountConvention;
 import com.java_template.application.entity.accrual.version_1.EODAccrualBatch;
 import com.java_template.application.entity.accrual.version_1.LoanFilter;
 import com.java_template.application.entity.accrual.version_1.PeriodStatus;
+import com.java_template.application.entity.accrual.version_1.PrincipalSnapshot;
 import com.java_template.application.entity.loan.version_1.Loan;
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.serializer.ProcessorSerializer;
@@ -250,9 +252,15 @@ public class SpawnAccrualsForEligibleLoansProcessor implements CyodaProcessor {
         accrual.setRunId(runId.toString());
         accrual.setPriorPeriodFlag(priorPeriodFlag);
 
-        // TODO: Get day count convention from loan
-        // For now, use a default value
-        // accrual.setDayCountConvention(loan.getDayCountConvention());
+        // Map day count convention from loan's dayCountBasis
+        DayCountConvention dayCountConvention = mapDayCountBasis(loan.getDayCountBasis(), loan.getLoanId());
+        accrual.setDayCountConvention(dayCountConvention);
+
+        // Capture principal snapshot from loan's outstanding principal
+        PrincipalSnapshot principalSnapshot = new PrincipalSnapshot();
+        principalSnapshot.setAmount(loan.getOutstandingPrincipal());
+        principalSnapshot.setEffectiveAtStartOfDay(true);
+        accrual.setPrincipalSnapshot(principalSnapshot);
 
         // Initialize with zero amounts (will be calculated by workflow processors)
         accrual.setDayCountFraction(BigDecimal.ZERO);
@@ -265,8 +273,50 @@ public class SpawnAccrualsForEligibleLoansProcessor implements CyodaProcessor {
 
         entityService.create(accrual);
 
-        logger.debug("Created accrual {} for loan {} with runId {}",
-            accrual.getAccrualId(), loan.getLoanId(), runId);
+        logger.debug("Created accrual {} for loan {} with runId {}, principal snapshot {}, and day count convention {}",
+            accrual.getAccrualId(), loan.getLoanId(), runId, principalSnapshot.getAmount(), dayCountConvention);
+    }
+
+    /**
+     * Maps the loan's dayCountBasis (String) to the accrual's DayCountConvention (enum).
+     *
+     * Supported mappings:
+     * - "ACT/360", "ACT360" -> ACT_360
+     * - "ACT/365", "ACT365", "ACT/365F" -> ACT_365
+     * - "30/360", "30360" -> THIRTY_360
+     *
+     * @param dayCountBasis The day count basis from the loan (e.g., "ACT/365")
+     * @param loanId The loan ID for logging purposes
+     * @return The corresponding DayCountConvention enum value
+     * @throws IllegalStateException if the dayCountBasis cannot be mapped
+     */
+    private DayCountConvention mapDayCountBasis(String dayCountBasis, String loanId) {
+        if (dayCountBasis == null || dayCountBasis.trim().isEmpty()) {
+            logger.warn("Day count basis is null or empty for loan {}, defaulting to ACT_365", loanId);
+            return DayCountConvention.ACT_365;
+        }
+
+        // Normalize the input by removing slashes and converting to uppercase
+        String normalized = dayCountBasis.trim().toUpperCase().replace("/", "");
+
+        return switch (normalized) {
+            case "ACT360" -> {
+                logger.debug("Mapped day count basis '{}' to ACT_360 for loan {}", dayCountBasis, loanId);
+                yield DayCountConvention.ACT_360;
+            }
+            case "ACT365", "ACT365F" -> {
+                logger.debug("Mapped day count basis '{}' to ACT_365 for loan {}", dayCountBasis, loanId);
+                yield DayCountConvention.ACT_365;
+            }
+            case "30360" -> {
+                logger.debug("Mapped day count basis '{}' to THIRTY_360 for loan {}", dayCountBasis, loanId);
+                yield DayCountConvention.THIRTY_360;
+            }
+            default -> {
+                logger.warn("Unknown day count basis '{}' for loan {}, defaulting to ACT_365", dayCountBasis, loanId);
+                yield DayCountConvention.ACT_365;
+            }
+        };
     }
 }
 
