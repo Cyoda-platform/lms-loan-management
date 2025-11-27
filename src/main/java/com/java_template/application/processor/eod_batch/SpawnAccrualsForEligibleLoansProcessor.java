@@ -2,7 +2,6 @@ package com.java_template.application.processor.eod_batch;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.java_template.application.entity.accrual.version_1.Accrual;
-import com.java_template.application.entity.accrual.version_1.AccrualState;
 import com.java_template.application.entity.accrual.version_1.BatchMetrics;
 import com.java_template.application.entity.accrual.version_1.DayCountConvention;
 import com.java_template.application.entity.accrual.version_1.EODAccrualBatch;
@@ -18,9 +17,6 @@ import com.java_template.common.workflow.CyodaEventContext;
 import com.java_template.common.workflow.CyodaProcessor;
 import com.java_template.common.workflow.OperationSpecification;
 import org.cyoda.cloud.api.event.common.ModelSpec;
-import org.cyoda.cloud.api.event.common.condition.GroupCondition;
-import org.cyoda.cloud.api.event.common.condition.Operation;
-import org.cyoda.cloud.api.event.common.condition.SimpleCondition;
 import org.cyoda.cloud.api.event.processing.EntityProcessorCalculationRequest;
 import org.cyoda.cloud.api.event.processing.EntityProcessorCalculationResponse;
 import org.slf4j.Logger;
@@ -279,7 +275,6 @@ public class SpawnAccrualsForEligibleLoansProcessor implements CyodaProcessor {
 
     /**
      * Maps the loan's dayCountBasis (String) to the accrual's DayCountConvention (enum).
-     *
      * Supported mappings:
      * - "ACT/360", "ACT360" -> ACT_360
      * - "ACT/365", "ACT365", "ACT/365F" -> ACT_365

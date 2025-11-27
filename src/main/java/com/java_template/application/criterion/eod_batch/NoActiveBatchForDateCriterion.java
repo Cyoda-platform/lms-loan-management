@@ -1,7 +1,6 @@
 package com.java_template.application.criterion.eod_batch;
 
 import com.java_template.application.entity.accrual.version_1.EODAccrualBatch;
-import com.java_template.application.entity.accrual.version_1.EODAccrualBatchState;
 import com.java_template.common.dto.EntityWithMetadata;
 import com.java_template.common.serializer.*;
 import com.java_template.common.service.EntityService;
